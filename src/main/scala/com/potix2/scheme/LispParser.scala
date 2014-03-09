@@ -2,18 +2,33 @@ package com.potix2.scheme
 
 import scala.util.parsing.combinator._
 
-sealed trait LispVal
+sealed trait LispVal {
+  override def toString: String = this match {
+    case LispAtom(v)     => v
+    case LispList(xs)    => "(" + xs.foldLeft("")((b,a) => if(b.isEmpty) a.toString() else b + " " + a.toString()) + ")"
+    case LispDottedList(head, tail)    => "(" + head.foldLeft("")((b,a) => a.toString() + " " + b) + " . " + tail.toString() + ")"
+    case LispInteger(i)  => i.toString()
+    case LispString(s)   => "\"" + s + "\""
+    case LispBool(true)  => "#t"
+    case LispBool(false) => "#f"
+    case LispChar(c)     => c
+    case LispVector(xs)  => "#(" + xs.foldLeft("")((b,a) => a.toString() + " " + b) + ")"
+  }
+}
+
 case class LispAtom(value: String) extends LispVal
 case class LispList(value: List[LispVal]) extends LispVal
 case class LispDottedList(list: List[LispVal], value: LispVal) extends LispVal
 abstract trait LispNumber extends LispVal
-case class LispComplex(r: Double, i: Double) extends LispNumber
-case class LispReal(value: Double) extends LispNumber
-case class LispUReal(value: Int) extends LispNumber
-case class LispDecimal(value: Int) extends LispNumber
+//case class LispComplex(r: Double, i: Double) extends LispNumber
+//case class LispReal(value: Double) extends LispNumber
+//case class LispUReal(value: Int) extends LispNumber
+//case class LispDecimal(value: Int) extends LispNumber
 case class LispInteger(value: Int) extends LispNumber
 case class LispString(value: String) extends LispVal
 case class LispBool(value: Boolean) extends LispVal
+case class LispChar(value: String) extends LispVal
+case class LispVector(value: Vector[LispVal]) extends LispVal
 
 sealed trait Radix
 case class Binary extends Radix
@@ -22,33 +37,35 @@ case class Digit extends Radix
 case class Hex extends Radix
 
 trait LispParser extends RegexParsers {
-  def readExpr(input: String): String = {
-    parseAll(token, input) match {
-      case Failure(msg, in) => msg
-      case Success(result, next) => "Found Value"
+  override val whiteSpace = "".r
+  def readExpr(input: String): LispVal = {
+    parseAll(expression, input) match {
+      case Failure(msg, in) => throw new RuntimeException(msg)
+      case Success(result, next) => result
     }
   }
 
+  //7.1.1 Lexical structure
   //TODO: inline_hex_digitsに対応する
-  def symbol: Parser[String] = """[!#$%&|\\*+-/:<=>?@^_~]""".r
-  def letter: Parser[String] = """[a-zA-Z]""".r
   def token: Parser[LispVal] =
-    identifier ^^ (LispAtom(_)) |
-    boolean ^^ (LispBool(_)) |
-    string ^^ (LispString(_)) |
+    identifier |
+    boolean |
+    string |
     number
 
-  def identifier: Parser[String] = initial ~ rep(subsequent) ^^ { case x~xs => xs.foldLeft(x)(_ + _) } |
-    "|" ~> rep(symbol_element) <~ "|" ^^ { case xs => xs.foldLeft("")(_ + _) } |
-    perculiar_identifier
+  def identifier: Parser[LispAtom] =
+    initial ~ rep(subsequent) ^^ { case x~xs => LispAtom(xs.foldLeft(x)(_ + _)) } |
+    "|" ~> rep(symbol_element) <~ "|" ^^ { case xs => LispAtom(xs.foldLeft("")(_ + _)) } |
+    peculiar_identifier ^^ (LispAtom(_))
   def initial: Parser[String] = letter | special_initial
+  def letter: Parser[String] = """[a-zA-Z]""".r
   def special_initial: Parser[String] = """[!$%&*/:<=>?^_~]""".r
   def subsequent: Parser[String] = initial | digit | special_subsequent
   def digit: Parser[String] = "[0-9]".r
   def explicit_sign: Parser[String] = "+" | "-"
   def special_subsequent: Parser[String] = explicit_sign | "." | "@"
   def symbol_element: Parser[String] = "[^|\\\\]".r
-  def perculiar_identifier: Parser[String] =
+  def peculiar_identifier: Parser[String] =
     explicit_sign ~ "." ~ dot_subsequent ~ rep(subsequent) ^^ { case es~"."~ds~subs => subs.foldLeft(es+"."+ds)(_ + _)} |
     explicit_sign ~ sign_subsequent ~ rep(subsequent) ^^ { case es~ss~subs => subs.foldLeft(es+ss)(_ + _) } |
     explicit_sign |
@@ -57,14 +74,83 @@ trait LispParser extends RegexParsers {
   def dot_subsequent: Parser[String] = sign_subsequent | "."
   def sign_subsequent: Parser[String] = initial | explicit_sign | "@"
 
-  def string: Parser[String] = "\"" ~> "([^\"\\\\]|\\\\a|\\\\b|\\\\t|\\\\n|\\\\r)*".r <~ "\""
+  def string: Parser[LispVal] = "\"" ~> "([^\"\\\\]|\\\\a|\\\\b|\\\\t|\\\\n|\\\\r)*".r <~ "\"" ^^ (LispString(_))
 
-  def boolean: Parser[Boolean] = boolTrue ^^ (x => true) | boolFalse ^^ (x => false)
+  def boolean: Parser[LispBool] = boolTrue ^^ (x => LispBool(true)) | boolFalse ^^ (x => LispBool(false))
   def boolTrue: Parser[String] = "#true" | "#t"
   def boolFalse: Parser[String] = "#false" | "#f"
 
+  def character: Parser[LispChar] =
+    "#\\" ~> character_name |
+//    "#\\" ~> hex_scalar_value |
+    "#\\" ~> ".".r ^^ (LispChar(_))
+  def character_name: Parser[LispChar] =
+    "alarm"     ^^ (x => LispChar("\u0007")) |
+    "backspace" ^^ (x => LispChar("\u0008")) |
+    "delete"    ^^ (x => LispChar("\u007F")) |
+    "escape"    ^^ (x => LispChar("\u001B")) |
+    "newline"   ^^ (x => LispChar("\u000A")) |
+    "null"      ^^ (x => LispChar("\u0000")) |
+    "return"    ^^ (x => LispChar("\u000D")) |
+    "space"     ^^ (x => LispChar(" ")) |
+    "tab"       ^^ (x => LispChar("\u0009"))
+
+  //TODO: implement number
   def number: Parser[LispNumber] = int10 ^^ (LispInteger(_))
-  def int10: Parser[Int] = rep(digit) ^^ (xs => (xs.foldLeft("")(_ + _)).toInt)
+  def int10: Parser[Int] = rep(digit10) ^^ (xs => (xs.foldLeft("")(_ + _)).toInt)
+  def digit10: Parser[String] = digit
+
+  //7.1.2 External representations
+  def datum: Parser[LispVal] =
+    compound_datum |
+    simple_datum
+  // TODO: labelを実装する(ref. 2.4)
+//    label ~ "=" ~ datum |
+//    label <~ "#"
+
+  def simple_datum: Parser[LispVal] =
+    symbol |
+    boolean |
+    character |
+    string |
+    number
+//    bytevector
+
+  val spaces = "[ \t\r\n]+".r
+  def symbol: Parser[LispAtom] = identifier
+  def compound_datum: Parser[LispVal] = list | vector
+  def list: Parser[LispVal] =
+    "(" ~> repsep(datum, spaces) <~ ")" ^^ (LispList(_)) |
+    "(" ~> datum ~ repsep(datum, spaces) ~ "." ~ datum <~ ")" ^^ {case x~xs~"."~y => LispDottedList(xs.foldLeft(List(x))((b,a) => b ++ List(a)), y)} |
+    abbreviation
+  def abbreviation: Parser[LispVal] =
+    abbrev_prefix ~ datum ^^  { case prefix~v => v }
+  def abbrev_prefix: Parser[String] = "'" | "`" | "," | ",@"
+  def vector: Parser[LispVector] =  "#(" ~> repsep(datum, spaces) <~ ")" ^^ (xs => LispVector(xs.toVector))
+  //def label: Parser[Int] = "#" ~> digit10 ~ rep(digit10) ^^ {case x~xs => xs.foldLeft(x)(_ + _).toInt }
+
+  def expression: Parser[LispVal] =
+    identifier |
+    procedure_call |
+    exprLiteral
+
+  def exprLiteral: Parser[LispVal] =
+    quotation |
+    self_evaluating
+
+  def self_evaluating: Parser[LispVal] =
+    boolean |
+    character |
+    string |
+    number
+
+  def quotation: Parser[LispVal] =
+    "'" ~> datum ^^ (x => LispList(List(LispAtom("quote"), x)))
+
+  def procedure_call: Parser[LispVal] =
+    "(" ~> operator ~ spaces ~ repsep(operand, spaces) <~ ")" ^^
+      { case op~s~ops => LispList(List(op) ++ ops)}
+
+  def operator: Parser[LispVal] = expression
+  def operand: Parser[LispVal] = expression
 }
-
-
