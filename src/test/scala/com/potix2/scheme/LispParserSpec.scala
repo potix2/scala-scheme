@@ -7,10 +7,10 @@ class LispParserSpec extends SpecificationWithJUnit {
 
   "readExpr" should {
     "return quoted identifier" in {
-      parser.readExpr("'a") must_== "(quote a)"
+      parser.readExpr("'a") must_== LispList(List(LispAtom("quote"), LispAtom("a")))
     }
     "return expression" in {
-      parser.readExpr("(+ 1 2)") must_== "(+ 1 2)"
+      parser.readExpr("(+ 1 2)") must_== LispList(List(LispAtom("+"), LispInteger(1), LispInteger(2)))
     }
 //    "return an input string when the input string is invalid" in {
     //      parser.readExpr("(a b)") must_== LispList(List(LispAtom("a"), LispAtom("b")))

@@ -39,7 +39,7 @@ case class Hex extends Radix
 trait LispParser extends RegexParsers {
   override val whiteSpace = "".r
   def readExpr(input: String): LispVal = {
-    parseAll(expression, input) match {
+    parseAll(program, input) match {
       case Failure(msg, in) => throw new RuntimeException(msg)
       case Success(result, next) => result
     }
@@ -56,7 +56,7 @@ trait LispParser extends RegexParsers {
   def identifier: Parser[LispAtom] =
     initial ~ rep(subsequent) ^^ { case x~xs => LispAtom(xs.foldLeft(x)(_ + _)) } |
     "|" ~> rep(symbol_element) <~ "|" ^^ { case xs => LispAtom(xs.foldLeft("")(_ + _)) } |
-    peculiar_identifier ^^ (LispAtom(_))
+    peculiar_identifier ^^ LispAtom
   def initial: Parser[String] = letter | special_initial
   def letter: Parser[String] = """[a-zA-Z]""".r
   def special_initial: Parser[String] = """[!$%&*/:<=>?^_~]""".r
@@ -74,7 +74,7 @@ trait LispParser extends RegexParsers {
   def dot_subsequent: Parser[String] = sign_subsequent | "."
   def sign_subsequent: Parser[String] = initial | explicit_sign | "@"
 
-  def string: Parser[LispVal] = "\"" ~> "([^\"\\\\]|\\\\a|\\\\b|\\\\t|\\\\n|\\\\r)*".r <~ "\"" ^^ (LispString(_))
+  def string: Parser[LispVal] = "\"" ~> "([^\"\\\\]|\\\\a|\\\\b|\\\\t|\\\\n|\\\\r)*".r <~ "\"" ^^ LispString
 
   def boolean: Parser[LispBool] = boolTrue ^^ (x => LispBool(true)) | boolFalse ^^ (x => LispBool(false))
   def boolTrue: Parser[String] = "#true" | "#t"
@@ -96,8 +96,8 @@ trait LispParser extends RegexParsers {
     "tab"       ^^ (x => LispChar("\u0009"))
 
   //TODO: implement number
-  def number: Parser[LispNumber] = int10 ^^ (LispInteger(_))
-  def int10: Parser[Int] = rep(digit10) ^^ (xs => (xs.foldLeft("")(_ + _)).toInt)
+  def number: Parser[LispNumber] = int10 ^^ LispInteger
+  def int10: Parser[Int] = rep(digit10) ^^ (xs => xs.foldLeft("")(_ + _).toInt)
   def digit10: Parser[String] = digit
 
   //7.1.2 External representations
@@ -120,7 +120,7 @@ trait LispParser extends RegexParsers {
   def symbol: Parser[LispAtom] = identifier
   def compound_datum: Parser[LispVal] = list | vector
   def list: Parser[LispVal] =
-    "(" ~> repsep(datum, spaces) <~ ")" ^^ (LispList(_)) |
+    "(" ~> repsep(datum, spaces) <~ ")" ^^ LispList |
     "(" ~> datum ~ repsep(datum, spaces) ~ "." ~ datum <~ ")" ^^ {case x~xs~"."~y => LispDottedList(xs.foldLeft(List(x))((b,a) => b ++ List(a)), y)} |
     abbreviation
   def abbreviation: Parser[LispVal] =
@@ -153,4 +153,8 @@ trait LispParser extends RegexParsers {
 
   def operator: Parser[LispVal] = expression
   def operand: Parser[LispVal] = expression
+
+  def command: Parser[LispVal] = expression
+  def program: Parser[LispVal] = command
+
 }
