@@ -1,6 +1,9 @@
 package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
+import com.potix2.scheme.LispError.ThrowsError
+import scalaz.Scalaz._
+
 trait Evaluator {
 
   val primitives = List(
@@ -17,29 +20,39 @@ trait Evaluator {
     ("number?", typeTestOp[LispInteger])
   )
 
-  def typeTestOp[A <: LispVal: ClassTag]: List[LispVal] => LispVal =
-    (expr: List[LispVal]) => expr match {
-      case h :: Nil => LispBool(classTag[A].runtimeClass.isInstance(h))
-      case _ => LispBool(false) //TODO: wrong number of arguments for
-    }
-
-  def numericBinop(op: (Int, Int) => Int): List[LispVal] => LispVal =
-    (xs: List[LispVal]) => LispInteger(xs.map(unpackNumber) match {
-      case h :: t => t.foldLeft(h)(op)
-    })
-
-  def unpackNumber(value: LispVal): Int = value match {
-    case LispInteger(n) => n
-    case _ => 0
+  def typeTestOp[A <: LispVal: ClassTag]: List[LispVal] => ThrowsError[LispVal] = {
+    case xs@(h :: Nil) => LispBool(classTag[A].runtimeClass.isInstance(h)).point[ThrowsError]
+    case xs => NumArgs(1,xs).left[LispVal]
   }
 
-  def lispApply(sym: String, args: List[LispVal]): LispVal = primitives.
-      collectFirst { case (s,f) if s == sym => f(args) }.
-      getOrElse(LispBool(false))
+  def numericBinop(op: (Int, Int) => Int): List[LispVal] => ThrowsError[LispVal] = {
+    case xs@(h :: Nil) => NumArgs(2, xs).left[LispVal]
+    case xs => for {
+      ints <- xs.map(unpackNumber).sequence[ThrowsError, Int]
+    } yield LispInteger(ints.tail.foldLeft(ints.head)(op))
+  }
 
-  def eval(value: LispVal): LispVal = value match {
-    case LispList(List(LispAtom("quote"), v)) => v
-    case LispList(LispAtom(func) :: args) => lispApply(func, args.map(eval))
-    case x => x
+  def unpackNumber(value: LispVal): ThrowsError[Int] = value match {
+    case LispInteger(n) => n.point[ThrowsError]
+    case v => TypeMismatch("number", v).left[Int]
+  }
+
+  def lispApply(sym: String, args: List[LispVal]): ThrowsError[LispVal] = primitives.
+      collectFirst { case (s,f) if s == sym => f(args) }.
+      getOrElse(NotFunction("Unrecognized primitives function args", sym).left[LispVal])
+
+  def eval(value: LispVal): ThrowsError[LispVal] = value match {
+    case LispList(List(LispAtom("quote"), v)) => v.point[ThrowsError]
+    case LispList(LispAtom(func) :: args) =>
+      val argList:ThrowsError[List[LispVal]] = args.map(eval).sequence[ThrowsError, LispVal]
+      for {
+        a <- argList
+        result <- lispApply(func, a)
+      } yield result
+
+    case s:LispString => s.point[ThrowsError]
+    case n:LispNumber => n.point[ThrowsError]
+    case b:LispBool   => b.point[ThrowsError]
+    case v => BadSpecialForm("Unrecognized special form", v).left[LispVal]
   }
 }

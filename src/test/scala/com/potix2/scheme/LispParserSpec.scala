@@ -1,16 +1,18 @@
 package com.potix2.scheme
 
 import org.specs2.mutable._
+import com.potix2.scheme.LispError.ThrowsError
+import scalaz.Scalaz._
 
 class LispParserSpec extends SpecificationWithJUnit {
   val parser = new LispParser {}
 
   "readExpr" should {
     "return quoted identifier" in {
-      parser.readExpr("'a") must_== LispList(List(LispAtom("quote"), LispAtom("a")))
+      parser.readExpr("'a") must_== LispList(List(LispAtom("quote"), LispAtom("a"))).point[ThrowsError]
     }
     "return expression" in {
-      parser.readExpr("(+ 1 2)") must_== LispList(List(LispAtom("+"), LispInteger(1), LispInteger(2)))
+      parser.readExpr("(+ 1 2)") must_== LispList(List(LispAtom("+"), LispInteger(1), LispInteger(2))).point[ThrowsError]
     }
 //    "return an input string when the input string is invalid" in {
     //      parser.readExpr("(a b)") must_== LispList(List(LispAtom("a"), LispAtom("b")))

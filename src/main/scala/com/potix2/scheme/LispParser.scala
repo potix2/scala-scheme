@@ -1,13 +1,16 @@
 package com.potix2.scheme
 
 import scala.util.parsing.combinator._
+import com.potix2.scheme.LispError._
+import scalaz._
+import scalaz.Scalaz._
 
 trait LispParser extends RegexParsers {
   override val whiteSpace = "".r
-  def readExpr(input: String): LispVal = {
+  def readExpr(input: String): ThrowsError[LispVal] = {
     parseAll(program, input) match {
-      case Failure(msg, in) => throw new RuntimeException(msg)
-      case Success(result, next) => result
+      case Failure(msg, in) => ParseFailure(msg).left[LispVal]
+      case Success(result, next) => result.point[ThrowsError]
     }
   }
 
