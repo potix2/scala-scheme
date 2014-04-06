@@ -4,7 +4,7 @@ sealed trait LispVal {
   override def toString: String = this match {
     case LispAtom(v)     => v
     case LispList(xs)    => "(" + xs.foldLeft("")((b,a) => if(b.isEmpty) a.toString() else b + " " + a.toString()) + ")"
-    case LispDottedList(head, tail)    => "(" + head.foldLeft("")((b,a) => a.toString() + " " + b) + " . " + tail.toString() + ")"
+    case LispDottedList(head, tail)    => "(" + head.foldLeft("")((b,a) => a.toString() + " " + b) + ". " + tail.toString() + ")"
     case LispInteger(i)  => i.toString()
     case LispString(s)   => "\"" + s + "\""
     case LispBool(true)  => "#t"

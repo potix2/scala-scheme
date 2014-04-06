@@ -66,7 +66,7 @@ trait LispParser extends RegexParsers {
 
   //TODO: implement number
   def number: Parser[LispNumber] = int10 ^^ LispInteger
-  def int10: Parser[Int] = rep(digit10) ^^ (xs => xs.foldLeft("")(_ + _).toInt)
+  def int10: Parser[Int] = rep1(digit10) ^^ (xs => xs.foldLeft("")(_ + _).toInt)
   def digit10: Parser[String] = digit
 
   //7.1.2 External representations
@@ -89,8 +89,8 @@ trait LispParser extends RegexParsers {
   def symbol: Parser[LispAtom] = identifier
   def compound_datum: Parser[LispVal] = list | vector
   def list: Parser[LispVal] =
+    "(" ~> rep1sep(datum, spaces) ~ rep1(spaces) ~ "." ~ rep1(spaces) ~ datum <~ ")" ^^ {case xs~s1~"."~s2~y => LispDottedList(xs, y)} |
     "(" ~> repsep(datum, spaces) <~ ")" ^^ LispList |
-    "(" ~> datum ~ repsep(datum, spaces) ~ "." ~ datum <~ ")" ^^ {case x~xs~"."~y => LispDottedList(xs.foldLeft(List(x))((b,a) => b ++ List(a)), y)} |
     abbreviation
   def abbreviation: Parser[LispVal] =
     abbrev_prefix ~ datum ^^  { case prefix~v => v }

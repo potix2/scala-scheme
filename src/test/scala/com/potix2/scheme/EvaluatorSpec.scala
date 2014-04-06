@@ -1,8 +1,8 @@
 package com.potix2.scheme
 
+import com.potix2.scheme.LispError.ThrowsError
 import org.specs2.mutable.SpecificationWithJUnit
 import scalaz.Scalaz._
-import com.potix2.scheme.LispError.ThrowsError
 
 class EvaluatorSpec extends SpecificationWithJUnit {
   val evaluator = new Evaluator {}

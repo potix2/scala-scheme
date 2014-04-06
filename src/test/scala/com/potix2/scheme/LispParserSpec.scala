@@ -73,5 +73,8 @@ class LispParserSpec extends SpecificationWithJUnit {
     "return LispAtom with a token is identifier" in {
       parser.parseAll(parser.datum, "a").get must_== LispAtom("a")
     }
+    "(a b . c)" in {
+      parser.parseAll(parser.datum, "(a b . c)").get must_== LispDottedList(List(LispAtom("a"), LispAtom("b")), LispAtom("c"))
+    }
   }
 }
