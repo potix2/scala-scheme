@@ -76,5 +76,8 @@ class LispParserSpec extends SpecificationWithJUnit {
     "(a b . c)" in {
       parser.parseAll(parser.datum, "(a b . c)").get must_== LispDottedList(List(LispAtom("a"), LispAtom("b")), LispAtom("c"))
     }
+    "()" in {
+      parser.parseAll(parser.datum, "()").get must_== LispList(List())
+    }
   }
 }

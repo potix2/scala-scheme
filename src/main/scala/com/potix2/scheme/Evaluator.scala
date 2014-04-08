@@ -35,6 +35,7 @@ trait Evaluator {
     // list primitives
     ("car", carExpr _),
     ("cdr", cdrExpr _),
+    ("cons", consExpr _),
 
     // type primitives
     ("boolean?", typeTestOp[LispBool]),
@@ -114,6 +115,14 @@ trait Evaluator {
     case xs@(h::t) => NumArgs(1, xs).left[LispVal]
   }
 
+  def consExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
+    case xs@(h::Nil) => LispList(List(h)).point[ThrowsError]
+    case xs@(x::LispDottedList(ys,yslast)::Nil) => LispDottedList(x::ys, yslast).point[ThrowsError]
+    case xs@(h::LispList(ys)::Nil) => LispList(h::ys).point[ThrowsError]
+    case xs@(h::t::Nil) => LispDottedList(List(h), t).point[ThrowsError]
+    case xs@(h::t) => NumArgs(2, xs).left[LispVal]
+  }
+
   def lispApply(sym: String, args: List[LispVal]): ThrowsError[LispVal] = primitives.
       collectFirst { case (s,f) if s == sym => f(args) }.
       getOrElse(NotFunction("Unrecognized primitives function args", sym).left[LispVal])
@@ -130,6 +139,7 @@ trait Evaluator {
     case n:LispNumber => n.point[ThrowsError]
     case b:LispBool   => b.point[ThrowsError]
     case a:LispAtom   => a.point[ThrowsError]
+    case LispList(Nil) => value.point[ThrowsError]
     case v => BadSpecialForm("Unrecognized special form", v).left[LispVal]
   }
 }

@@ -84,6 +84,13 @@ class EvaluatorSpec extends SpecificationWithJUnit {
     "(cdr '(a))" in { evaluator.eval(makeExpr("cdr", makeExpr("quote", LispList(List(LispAtom("a")))))).toEither must beRight(LispList(List())) }
   }
 
+  "cons" should {
+    "(cons 'a 'b)" in { evaluator.eval(makeExpr("cons", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispAtom("b")))).toEither must beRight(LispDottedList(List(LispAtom("a")), LispAtom("b"))) }
+    "(cons 'a '(b . c))" in { evaluator.eval(makeExpr("cons", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispDottedList(List(LispAtom("b")), LispAtom("c"))))).toEither must beRight(LispDottedList(List(LispAtom("a"), LispAtom("b")), LispAtom("c"))) }
+    "(cons 'a '(b c))" in { evaluator.eval(makeExpr("cons", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispList(List(LispAtom("b"), LispAtom("c")))))).toEither must beRight(LispList(List(LispAtom("a"), LispAtom("b"), LispAtom("c")))) }
+    "(cons 'a 'b 'c))" in { evaluator.eval(makeExpr("cons", makeExpr("quote", LispAtom("a")), LispAtom("b"), LispAtom("c"))).toEither must beLeft(beAnInstanceOf[NumArgs]) }
+  }
+
   def makeExpr(sym:String, values: LispVal*): LispList =
     LispList((LispAtom(sym) :: values.toList))
 }
