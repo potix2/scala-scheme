@@ -2,6 +2,7 @@ package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
 import com.potix2.scheme.LispError.ThrowsError
+import scalaz._
 import scalaz.Scalaz._
 
 trait Evaluator {
@@ -36,6 +37,11 @@ trait Evaluator {
     ("car", carExpr _),
     ("cdr", cdrExpr _),
     ("cons", consExpr _),
+
+    // predicate for equality
+    ("eq?", eqvExpr _),
+    ("eqv?", eqvExpr _),
+    ("equal?", equalExpr _),
 
     // type primitives
     ("boolean?", typeTestOp[LispBool]),
@@ -116,11 +122,50 @@ trait Evaluator {
   }
 
   def consExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
-    case xs@(h::Nil) => LispList(List(h)).point[ThrowsError]
-    case xs@(x::LispDottedList(ys,yslast)::Nil) => LispDottedList(x::ys, yslast).point[ThrowsError]
-    case xs@(h::LispList(ys)::Nil) => LispList(h::ys).point[ThrowsError]
-    case xs@(h::t::Nil) => LispDottedList(List(h), t).point[ThrowsError]
+    case h::Nil                            => LispList(List(h)).point[ThrowsError]
+    case x::LispDottedList(ys,yslast)::Nil => LispDottedList(x::ys, yslast).point[ThrowsError]
+    case h::LispList(ys)::Nil              => LispList(h::ys).point[ThrowsError]
+    case h::t::Nil                         => LispDottedList(List(h), t).point[ThrowsError]
     case xs@(h::t) => NumArgs(2, xs).left[LispVal]
+  }
+
+  def eqvExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
+    case LispBool(b1)::LispBool(b2)::Nil => LispBool(b1 == b2).point[ThrowsError]
+    case LispInteger(n1)::LispInteger(n2)::Nil => LispBool(n1 == n2).point[ThrowsError]
+    case LispString(s1)::LispString(s2)::Nil => LispBool(s1 == s2).point[ThrowsError]
+    case LispAtom(a1)::LispAtom(a2)::Nil => LispBool(a1 == a2).point[ThrowsError]
+    case LispDottedList(xs1, x1)::LispDottedList(xs2,x2)::Nil => eqvExpr(List(LispList(xs1 ++ List(x1)), LispList(xs2 ++ List(x2))))
+    case LispList(xs1)::LispList(xs2)::Nil => LispBool(xs1 zip xs2 forall { s =>
+      eqvExpr(List(s._1,s._2)) match {
+        case -\/(err) => false
+        case \/-(LispBool(v)) => v
+      }}).point[ThrowsError]
+    case _::_::Nil => LispBool(false).point[ThrowsError]
+    case badArgList => NumArgs(2, badArgList).left[LispVal]
+  }
+
+  case class AnyUnpacker[A](unpacker: LispVal => ThrowsError[A])
+  val unpackers = List(AnyUnpacker(unpackNumber), AnyUnpacker(unpackString), AnyUnpacker(unpackBool))
+  def unpackEquals[A](arg1: LispVal, arg2: LispVal)(unpacker: AnyUnpacker[A]): ThrowsError[Boolean] = {
+    val b = for {
+      unpacked1 <- unpacker.unpacker(arg1)
+      unpacked2 <- unpacker.unpacker(arg2)
+    } yield unpacked1 == unpacked2
+    if (b.isLeft) false.point[ThrowsError] else b
+  }
+
+  def equalExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
+    case arg1::arg2::Nil => for {
+      primitiveEquals <- unpackers.map(unpackEquals(arg1, arg2)(_)).sequence[ThrowsError, Boolean].map(x => x.foldLeft(false)(_ || _))
+      eqvEquals <- eqvExpr(args)
+    } yield {
+      val eqvEqualsInner = eqvEquals match {
+        case LispBool(v) => v
+        case _ => false
+      }
+      LispBool(primitiveEquals || eqvEqualsInner)
+    }
+    case badArgList => NumArgs(2, badArgList).left[LispVal]
   }
 
   def lispApply(sym: String, args: List[LispVal]): ThrowsError[LispVal] = primitives.
