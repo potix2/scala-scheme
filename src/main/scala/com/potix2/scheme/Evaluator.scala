@@ -155,6 +155,12 @@ trait Evaluator {
   }
 
   def equalExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
+    case LispDottedList(xs1, x1)::LispDottedList(xs2,x2)::Nil => equalExpr(List(LispList(xs1 ++ List(x1)), LispList(xs2 ++ List(x2))))
+    case LispList(xs1)::LispList(xs2)::Nil => LispBool(xs1 zip xs2 forall { s =>
+      equalExpr(List(s._1,s._2)) match {
+        case -\/(err) => false
+        case \/-(LispBool(v)) => v
+      }}).point[ThrowsError]
     case arg1::arg2::Nil => for {
       primitiveEquals <- unpackers.map(unpackEquals(arg1, arg2)(_)).sequence[ThrowsError, Boolean].map(x => x.foldLeft(false)(_ || _))
       eqvEquals <- eqvExpr(args)
