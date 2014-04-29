@@ -89,7 +89,7 @@ trait LispParser extends RegexParsers {
   def symbol: Parser[LispAtom] = identifier
   def compound_datum: Parser[LispVal] = list | vector
   def list: Parser[LispVal] =
-    "(" ~> rep1sep(datum, spaces) ~ rep1(spaces) ~ "." ~ rep1(spaces) ~ datum <~ ")" ^^ {case xs~s1~"."~s2~y => LispDottedList(xs, y)} |
+    "(" ~> rep1sep(datum, spaces) ~ rep1(spaces) ~ "." ~ rep1(spaces) ~ datum ~ rep(spaces) <~ ")" ^^ {case xs~s1~"."~s2~y~s3 => LispDottedList(xs, y)} |
     "(" ~> repsep(datum, spaces) <~ ")" ^^ LispList |
     abbreviation
   def abbreviation: Parser[LispVal] =

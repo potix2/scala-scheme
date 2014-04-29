@@ -174,18 +174,29 @@ trait Evaluator {
     case badArgList => NumArgs(2, badArgList).left[LispVal]
   }
 
+  def exprCond(clauses: List[LispVal]): ThrowsError[LispVal] = clauses.toStream.map {
+    case LispList(LispAtom("else")::body) => exprCondImpl(LispBool(true), body)
+    case LispList(test::LispAtom("=>")::expr::Nil) => exprCondImpl(test, List(LispList(List(expr, test))))
+    case LispList(test::body) => exprCondImpl(test, body)
+  }.sequence[ThrowsError, Option[LispVal]].map { _.flatten.head }
+
+  def exprCondImpl(test:LispVal, body:List[LispVal]): ThrowsError[Option[LispVal]] = eval(test) match {
+    case \/-(v) => if ( v == LispBool(false) )
+      None.point[ThrowsError]
+    else
+      body.map(eval).sequence[ThrowsError, LispVal].map(x => x.lastOption.getOrElse(v).some)
+    case -\/(e) => e.left[Option[LispVal]]
+  }
+
   def lispApply(sym: String, args: List[LispVal]): ThrowsError[LispVal] = primitives.
-      collectFirst { case (s,f) if s == sym => f(args) }.
-      getOrElse(NotFunction("Unrecognized primitives function args", sym).left[LispVal])
+    collectFirst { case (s,f) if s == sym => args.map(eval).sequence.flatMap(f) }
+    .getOrElse(NotFunction("Unrecognized primitives function args", sym).left[LispVal])
+
 
   def eval(value: LispVal): ThrowsError[LispVal] = value match {
     case LispList(List(LispAtom("quote"), v)) => v.point[ThrowsError]
-    case LispList(LispAtom(func) :: args) =>
-      val argList:ThrowsError[List[LispVal]] = args.map(eval).sequence[ThrowsError, LispVal]
-      for {
-        a <- argList
-        result <- lispApply(func, a)
-      } yield result
+    case LispList(LispAtom("cond") :: clauses) => exprCond(clauses)
+    case LispList(LispAtom(func) :: args) => lispApply(func, args)
     case s:LispString => s.point[ThrowsError]
     case n:LispNumber => n.point[ThrowsError]
     case b:LispBool   => b.point[ThrowsError]

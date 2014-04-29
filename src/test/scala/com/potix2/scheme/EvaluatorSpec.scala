@@ -111,6 +111,21 @@ class EvaluatorSpec extends SpecificationWithJUnit {
       makeExpr("quote", LispList(List(LispInteger(1), LispInteger(2)))))).toEither must beRight(LispBool(true)) }
   }
 
+  "cond" should {
+    "(cond (#f 1 2) (#t 3 4))" in { evaluator.eval(makeExpr("cond", LispList(List(LispBool(false), LispInteger(1), LispInteger(2))), LispList(List(LispBool(true), LispInteger(3), LispInteger(4))))).toEither must beRight(LispInteger(4)) }
+    "(cond (#f 1 2) (else 3 4))" in { evaluator.eval(makeExpr("cond", LispList(List(LispBool(false), LispInteger(1), LispInteger(2))), LispList(List(LispAtom("else"), LispInteger(3), LispInteger(4))))).toEither must beRight(LispInteger(4)) }
+    "(cond (1))" in { evaluator.eval(makeExpr("cond", LispList(List(LispInteger(1))))).toEither must beRight(LispInteger(1))}
+    "(cond ((\"a\")))" in { evaluator.eval(makeExpr("cond", LispList(List(LispList(List(LispString("a"))))))).toEither must beLeft(beAnInstanceOf[BadSpecialForm])}
+    "(cond (1 (\"a\") 2))" in { evaluator.eval(makeExpr("cond", LispList(List(LispInteger(1), LispList(List(LispString("a"))), LispInteger(2))))).toEither must beLeft(beAnInstanceOf[BadSpecialForm])}
+    "(cond (1 => number?))" in { evaluator.eval(makeExpr("cond", LispList(List(LispInteger(1),LispAtom("=>"), LispAtom("number?"))))).toEither must beRight(LispBool(true))}
+  }
+
+  "condExprImpl" should {
+    "(#t 1)" in { evaluator.exprCondImpl(LispBool(true), List(LispInteger(1))).toEither must beRight(Some(LispInteger(1))) }
+    //"(#t a)" in { evaluator.exprCondImpl(LispBool(true), List(LispAtom("a"))).toEither must beLeft(beAnInstanceOf[UnboundVar]) }
+    "(#t 1 2)" in { evaluator.exprCondImpl(LispBool(true), List(LispInteger(1), LispInteger(2))).toEither must beRight(Some(LispInteger(2))) }
+    "(#f 1 2)" in { evaluator.exprCondImpl(LispBool(false), List(LispInteger(1), LispInteger(2))).toEither must beRight(None) }
+  }
   def makeDottedList(xs: List[LispVal], last: LispVal): LispList =
     makeExpr("quote", LispDottedList(xs, last))
 
