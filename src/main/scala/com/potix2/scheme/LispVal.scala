@@ -1,6 +1,10 @@
 package com.potix2.scheme
 
+import scalaz.effect.{IO, IORef}
+
 sealed trait LispVal {
+  def toIORef:IORef[LispVal] = IO.newIORef(this).unsafePerformIO()
+
   override def toString: String = this match {
     case LispAtom(v)     => v
     case LispList(xs)    => "(" + xs.foldLeft("")((b,a) => if(b.isEmpty) a.toString() else b + " " + a.toString()) + ")"

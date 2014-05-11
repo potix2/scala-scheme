@@ -1,9 +1,11 @@
 package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
-import com.potix2.scheme.LispError.ThrowsError
+import com.potix2.scheme.LispError.{IOThrowsError, ThrowsError}
 import scalaz._
+import scalaz.effect._
 import scalaz.Scalaz._
+import com.potix2.scheme.LispEnv.Env
 
 trait Evaluator {
 

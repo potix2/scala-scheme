@@ -2,10 +2,9 @@ package com.potix2.scheme
 
 import scalaz._
 import Scalaz._
-import scalaz.effect.IO
+import scalaz.effect.{IORef, IO}
 
 object MyLisp extends App with LispParser with Evaluator {
-
   def readPrompt(prompt: String): IO[String] = for {
     _ <- IO.putStr(prompt)
     line <- IO.readLn
