@@ -10,12 +10,18 @@ object LispEnv {
 
   def nullEnv: IO[Env] = IO.newIORef(List.empty[(String, IORef[LispVal])])
 
-  /*
+  implicit def liftIO = new MonadIO[IOThrowsError]{
+    override def liftIO[A](ioa: IO[A]): LispError.IOThrowsError[A] = EitherT.right(ioa)
+    override def point[A](a: => A): LispError.IOThrowsError[A] = EitherT.right(IO(a))
+    override def bind[A, B](fa: LispError.IOThrowsError[A])(f: (A) => LispError.IOThrowsError[B]): LispError.IOThrowsError[B] = fa.flatMap(f)
+  }
+
   def runIOThrows(action: IOThrowsError[String]): IO[String] = for {
     x <- action.run
-    extractValue <- x
-  } yield extractValue
-  */
+  } yield x match {
+      case \/-(v) => v
+      case -\/(e) => e.toString()
+    }
 
   def isBound(envRef: Env, varName: String): IO[Boolean] = for {
     e <- envRef.read
@@ -56,6 +62,11 @@ object LispEnv {
         _ <- envRef.write((varName, valueRef) :: env)
       } yield value).liftIO[IOThrowsError]
   } yield value
+
+  def liftThrows[A](err: ThrowsError[A]): IOThrowsError[A] = err match {
+    case -\/(e) => throwError(e)
+    case \/-(v) => v.point[IOThrowsError]
+  }
 
   /*
   def bindVars(envRef: Env, bindings: List[(String, LispVal)]): IO[Env] = {

@@ -1,11 +1,10 @@
 package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
+import com.potix2.scheme.LispEnv.Env
 import com.potix2.scheme.LispError.{IOThrowsError, ThrowsError}
 import scalaz._
-import scalaz.effect._
 import scalaz.Scalaz._
-import com.potix2.scheme.LispEnv.Env
 
 trait Evaluator {
 
@@ -31,9 +30,6 @@ trait Evaluator {
     ("string>?", strBoolBinop (_ > _)),
     ("string<=?", strBoolBinop (_ <= _)),
     ("string>=?", strBoolBinop (_ >= _)),
-
-    // conditional expression
-    ("if", ifExpr _),
 
     // list primitives
     ("car", carExpr _),
@@ -91,17 +87,6 @@ trait Evaluator {
   def unpackBool(value: LispVal): ThrowsError[Boolean] = value match {
     case LispBool(b) => b.point[ThrowsError]
     case v => TypeMismatch("boolean", v).left[Boolean]
-  }
-
-  def ifExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
-    case xs@(pred :: coseq :: alt :: Nil) => for {
-      cond <- eval(pred)
-      result <- cond match {
-        case LispBool(false) => eval(alt)
-        case _ => eval(coseq)
-      }
-    } yield result
-    case xs => NumArgs(3, xs).left[LispVal]
   }
 
   def carExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
@@ -176,34 +161,41 @@ trait Evaluator {
     case badArgList => NumArgs(2, badArgList).left[LispVal]
   }
 
-  def exprCond(clauses: List[LispVal]): ThrowsError[LispVal] = clauses.toStream.map {
-    case LispList(LispAtom("else")::body) => exprCondImpl(LispBool(true), body)
-    case LispList(test::LispAtom("=>")::expr::Nil) => exprCondImpl(test, List(LispList(List(expr, test))))
-    case LispList(test::body) => exprCondImpl(test, body)
-  }.sequence[ThrowsError, Option[LispVal]].map { _.flatten.head }
+  def exprCond(env: Env, clauses: List[LispVal]): IOThrowsError[LispVal] = clauses.toStream.map {
+    case LispList(LispAtom("else")::body) => exprCondImpl(env, LispBool(true), body)
+    case LispList(test::LispAtom("=>")::expr::Nil) => exprCondImpl(env, test, List(LispList(List(expr, test))))
+    case LispList(test::body) => exprCondImpl(env, test, body)
+  }.sequence[IOThrowsError, Option[LispVal]].map { _.flatten.head }
 
-  def exprCondImpl(test:LispVal, body:List[LispVal]): ThrowsError[Option[LispVal]] = eval(test) match {
-    case \/-(v) => if ( v == LispBool(false) )
-      None.point[ThrowsError]
-    else
-      body.map(eval).sequence[ThrowsError, LispVal].map(x => x.lastOption.getOrElse(v).some)
-    case -\/(e) => e.left[Option[LispVal]]
-  }
+  def exprCondImpl(env: Env, test:LispVal, body:List[LispVal]): IOThrowsError[Option[LispVal]] = for {
+    testResult <- eval(env)(test)
+    result <- if (testResult == LispBool(false)) None.point[IOThrowsError] else body.map(eval(env)).sequence[IOThrowsError, LispVal].map(x => x.lastOption.getOrElse(testResult).some)
+  } yield result
 
-  def lispApply(sym: String, args: List[LispVal]): ThrowsError[LispVal] = primitives.
-    collectFirst { case (s,f) if s == sym => args.map(eval).sequence.flatMap(f) }
-    .getOrElse(NotFunction("Unrecognized primitives function args", sym).left[LispVal])
+  def lispApply(env: Env, sym: String, args: List[LispVal]): IOThrowsError[LispVal] = primitives.
+    collectFirst { case (s,f) if s == sym => args.map(eval(env)).
+    sequence[IOThrowsError, LispVal].
+    flatMap(x => LispEnv.liftThrows(f(x))) }
+    .getOrElse(LispEnv.throwError(NotFunction("Unrecognized primitives function args", sym)))
 
+  def ifExpr(env: Env, pred: LispVal, coseq: LispVal, alt: LispVal): IOThrowsError[LispVal] =for {
+    cond <- eval(env)(pred)
+    result <- cond match {
+      case LispBool(false) => eval(env)(alt)
+      case _ => eval(env)(coseq)
+    }
+  } yield result
 
-  def eval(value: LispVal): ThrowsError[LispVal] = value match {
-    case LispList(List(LispAtom("quote"), v)) => v.point[ThrowsError]
-    case LispList(LispAtom("cond") :: clauses) => exprCond(clauses)
-    case LispList(LispAtom(func) :: args) => lispApply(func, args)
-    case s:LispString => s.point[ThrowsError]
-    case n:LispNumber => n.point[ThrowsError]
-    case b:LispBool   => b.point[ThrowsError]
-    case a:LispAtom   => a.point[ThrowsError]
-    case LispList(Nil) => value.point[ThrowsError]
-    case v => BadSpecialForm("Unrecognized special form", v).left[LispVal]
+  def eval(env: Env)(value: LispVal): IOThrowsError[LispVal] = value match {
+    case LispList(List(LispAtom("quote"), v)) => v.point[IOThrowsError]
+    case LispList(List(LispAtom("if"), pred, coseq, alt)) => ifExpr(env, pred, coseq, alt)
+    case LispList(LispAtom("cond") :: clauses) => exprCond(env, clauses)
+    case LispList(LispAtom(func) :: args) => lispApply(env, func, args)
+    case s:LispString => s.point[IOThrowsError]
+    case n:LispNumber => n.point[IOThrowsError]
+    case b:LispBool   => b.point[IOThrowsError]
+    case a:LispAtom   => a.point[IOThrowsError]
+    case LispList(Nil) => value.point[IOThrowsError]
+    case v => LispEnv.throwError(BadSpecialForm("Unrecognized special form", v))
   }
 }

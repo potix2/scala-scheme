@@ -10,20 +10,14 @@ object MyLisp extends App with LispParser with Evaluator {
     line <- IO.readLn
   } yield line
 
-  def evalString(expr: String): IO[String] = {
-    val extractValue = for {
-      e <- readExpr(expr)
-      evaled <- eval(e)
-    } yield evaled
+  def evalString(env: LispEnv.Env)(expr: String): IO[String] = LispEnv.runIOThrows(
+    for {
+      e <- LispEnv.liftThrows(readExpr(expr))
+      evaled <- eval(env)(e)
+    } yield evaled.toString)
 
-    (extractValue match {
-      case -\/(e) => e.toString()
-      case \/-(v) => v.toString
-    }).point[IO]
-  }
-
-  def evalAndPrint(expr: String): IO[Unit] = for {
-    p <- evalString(expr)
+  def evalAndPrint(env: LispEnv.Env)(expr: String): IO[Unit] = for {
+    p <- evalString(env)(expr)
     _ <- IO.putStrLn(p)
   } yield ()
 
@@ -37,13 +31,20 @@ object MyLisp extends App with LispParser with Evaluator {
         _ <- until_(pred)(prompt)(action)
       } yield ()).unsafePerformIO()
 
-  def runRepl:IO[Unit] =
-    until_((x:String) => x == "quit")(readPrompt("lisp>> "))(evalAndPrint)
+  def runOne(expr: String): IO[Unit] = for {
+    env <- LispEnv.nullEnv
+    _ <- evalAndPrint(env)(expr)
+  } yield()
+
+  def runRepl: IO[Unit] = for {
+    env <- LispEnv.nullEnv
+    _ <- until_((x:String) => x == "quit")(readPrompt("lisp>> "))(evalAndPrint(env))
+  } yield()
 
   override def main(args: Array[String]) = {
-    (if ( args.length == 0 )
-      runRepl
+    if ( args.length == 0 )
+      runRepl.unsafePerformIO()
     else
-      evalAndPrint(args(0))).unsafePerformIO()
+      runOne(args(0)).unsafePerformIO()
   }
 }

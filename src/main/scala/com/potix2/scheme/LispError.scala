@@ -26,15 +26,11 @@ object LispError {
   type ThrowsError[+A] = \/[LispError, A]
   type IOThrowsError[+A] = EitherT[IO,LispError,A]
 
+  /*
   implicit def liftIO = new MonadIO[IOThrowsError]{
     override def liftIO[A](ioa: IO[A]): LispError.IOThrowsError[A] = EitherT.right(ioa)
     override def point[A](a: => A): LispError.IOThrowsError[A] = EitherT.right(IO(a))
     override def bind[A, B](fa: LispError.IOThrowsError[A])(f: (A) => LispError.IOThrowsError[B]): LispError.IOThrowsError[B] = fa.flatMap(f)
-  }
-  /*
-  def liftThrows[A](error: ThrowsError[A]): IOThrowsError[A] = {
-    case -\/(err) => err.left[A]
-    case \/-(v) => v.point[IOThrowsError]
   }
   */
 }

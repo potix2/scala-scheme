@@ -1,8 +1,8 @@
 package com.potix2.scheme
 
 import org.specs2.mutable.Specification
-import scalaz.effect._
 import com.potix2.scheme.LispError.IOThrowsError
+import com.potix2.scheme.LispEnv._
 
 class LispEnvSpec extends Specification {
   val env = for {
