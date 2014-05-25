@@ -1,6 +1,6 @@
 package com.potix2.scheme
 
-import com.potix2.scheme.LispError.IOThrowsError
+import com.potix2.scheme.Lisp._
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.matcher.Matcher
 import scala.reflect.ClassTag

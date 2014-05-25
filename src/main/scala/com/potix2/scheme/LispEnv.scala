@@ -3,18 +3,11 @@ package com.potix2.scheme
 import scalaz._
 import Scalaz._
 import scalaz.effect._
-import com.potix2.scheme.LispError._
 
 trait LispEnv {
-   type Env = IORef[List[(String, IORef[LispVal])]]
+  import Lisp._
 
   def nullEnv: IO[Env] = IO.newIORef(List.empty[(String, IORef[LispVal])])
-
-  implicit def liftIO = new MonadIO[IOThrowsError]{
-    override def liftIO[A](ioa: IO[A]): LispError.IOThrowsError[A] = EitherT.right(ioa)
-    override def point[A](a: => A): LispError.IOThrowsError[A] = EitherT.right(IO(a))
-    override def bind[A, B](fa: LispError.IOThrowsError[A])(f: (A) => LispError.IOThrowsError[B]): LispError.IOThrowsError[B] = fa.flatMap(f)
-  }
 
   def runIOThrows(action: IOThrowsError[String]): IO[String] = for {
     x <- action.run

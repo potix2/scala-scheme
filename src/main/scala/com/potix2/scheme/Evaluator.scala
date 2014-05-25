@@ -1,7 +1,7 @@
 package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
-import com.potix2.scheme.LispError.{IOThrowsError, ThrowsError}
+import com.potix2.scheme.Lisp._
 import scalaz._
 import scalaz.Scalaz._
 

@@ -1,8 +1,5 @@
 package com.potix2.scheme
 
-import scalaz._
-import scalaz.effect.{LiftIO, MonadIO, IO}
-
 abstract class LispError extends Throwable {
   override def toString(): String = this match {
     case UnboundVar(message, varName) => s"${message}: ${varName}";
@@ -21,16 +18,3 @@ case class BadSpecialForm(message: String, form: LispVal) extends LispError
 case class NotFunction(message: String, func: String) extends LispError
 case class UnboundVar(message: String, varName: String) extends LispError
 case class Default(message: String) extends LispError
-
-object LispError {
-  type ThrowsError[+A] = \/[LispError, A]
-  type IOThrowsError[+A] = EitherT[IO,LispError,A]
-
-  /*
-  implicit def liftIO = new MonadIO[IOThrowsError]{
-    override def liftIO[A](ioa: IO[A]): LispError.IOThrowsError[A] = EitherT.right(ioa)
-    override def point[A](a: => A): LispError.IOThrowsError[A] = EitherT.right(IO(a))
-    override def bind[A, B](fa: LispError.IOThrowsError[A])(f: (A) => LispError.IOThrowsError[B]): LispError.IOThrowsError[B] = fa.flatMap(f)
-  }
-  */
-}

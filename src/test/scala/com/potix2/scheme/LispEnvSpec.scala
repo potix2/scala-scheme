@@ -1,10 +1,10 @@
 package com.potix2.scheme
 
 import org.specs2.mutable.Specification
-import com.potix2.scheme.LispError.IOThrowsError
-import com.potix2.scheme.LispEnv
+import Lisp._
 
 class LispEnvSpec extends Specification with LispEnv {
+
   val env = for {
     xx <- nullEnv
     _ <- xx.write(List(("a", LispInteger(1).toIORef), ("b", LispInteger(2).toIORef)))

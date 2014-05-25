@@ -1,7 +1,7 @@
 package com.potix2.scheme
 
 import org.specs2.mutable._
-import com.potix2.scheme.LispError.ThrowsError
+import com.potix2.scheme.Lisp._
 import scalaz.Scalaz._
 
 class LispParserSpec extends SpecificationWithJUnit {
