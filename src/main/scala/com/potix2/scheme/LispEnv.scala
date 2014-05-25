@@ -5,8 +5,8 @@ import Scalaz._
 import scalaz.effect._
 import com.potix2.scheme.LispError._
 
-object LispEnv {
-  type Env = IORef[List[(String, IORef[LispVal])]]
+trait LispEnv {
+   type Env = IORef[List[(String, IORef[LispVal])]]
 
   def nullEnv: IO[Env] = IO.newIORef(List.empty[(String, IORef[LispVal])])
 
@@ -81,3 +81,4 @@ object LispEnv {
   }
   */
 }
+

@@ -4,19 +4,19 @@ import scalaz._
 import Scalaz._
 import scalaz.effect.{IORef, IO}
 
-object MyLisp extends App with LispParser with Evaluator {
+object MyLisp extends App with LispParser with Evaluator with LispEnv {
   def readPrompt(prompt: String): IO[String] = for {
     _ <- IO.putStr(prompt)
     line <- IO.readLn
   } yield line
 
-  def evalString(env: LispEnv.Env)(expr: String): IO[String] = LispEnv.runIOThrows(
+  def evalString(env: Env)(expr: String): IO[String] = runIOThrows(
     for {
-      e <- LispEnv.liftThrows(readExpr(expr))
+      e <- liftThrows(readExpr(expr))
       evaled <- eval(env)(e)
     } yield evaled.toString)
 
-  def evalAndPrint(env: LispEnv.Env)(expr: String): IO[Unit] = for {
+  def evalAndPrint(env: Env)(expr: String): IO[Unit] = for {
     p <- evalString(env)(expr)
     _ <- IO.putStrLn(p)
   } yield ()
@@ -32,12 +32,12 @@ object MyLisp extends App with LispParser with Evaluator {
       } yield ()).unsafePerformIO()
 
   def runOne(expr: String): IO[Unit] = for {
-    env <- LispEnv.nullEnv
+    env <- nullEnv
     _ <- evalAndPrint(env)(expr)
   } yield()
 
   def runRepl: IO[Unit] = for {
-    env <- LispEnv.nullEnv
+    env <- nullEnv
     _ <- until_((x:String) => x == "quit")(readPrompt("lisp>> "))(evalAndPrint(env))
   } yield()
 

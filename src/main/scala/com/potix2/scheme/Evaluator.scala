@@ -1,12 +1,11 @@
 package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
-import com.potix2.scheme.LispEnv.Env
 import com.potix2.scheme.LispError.{IOThrowsError, ThrowsError}
 import scalaz._
 import scalaz.Scalaz._
 
-trait Evaluator {
+trait Evaluator { self: LispEnv =>
 
   val primitives = List(
     ("+", numericBinop (_ + _)),
@@ -175,8 +174,8 @@ trait Evaluator {
   def lispApply(env: Env, sym: String, args: List[LispVal]): IOThrowsError[LispVal] = primitives.
     collectFirst { case (s,f) if s == sym => args.map(eval(env)).
     sequence[IOThrowsError, LispVal].
-    flatMap(x => LispEnv.liftThrows(f(x))) }
-    .getOrElse(LispEnv.throwError(NotFunction("Unrecognized primitives function args", sym)))
+    flatMap(x => liftThrows(f(x))) }
+    .getOrElse(throwError(NotFunction("Unrecognized primitives function args", sym)))
 
   def ifExpr(env: Env, pred: LispVal, coseq: LispVal, alt: LispVal): IOThrowsError[LispVal] =for {
     cond <- eval(env)(pred)
@@ -190,12 +189,14 @@ trait Evaluator {
     case LispList(List(LispAtom("quote"), v)) => v.point[IOThrowsError]
     case LispList(List(LispAtom("if"), pred, coseq, alt)) => ifExpr(env, pred, coseq, alt)
     case LispList(LispAtom("cond") :: clauses) => exprCond(env, clauses)
+    case LispList(LispAtom("define") :: LispAtom(v) :: form :: Nil) => defineVar(env, v, form)
+    case LispList(LispAtom("set!") :: LispAtom(v) :: form :: Nil) => setVar(env, v, form)
     case LispList(LispAtom(func) :: args) => lispApply(env, func, args)
     case s:LispString => s.point[IOThrowsError]
     case n:LispNumber => n.point[IOThrowsError]
     case b:LispBool   => b.point[IOThrowsError]
-    case a:LispAtom   => a.point[IOThrowsError]
+    case LispAtom(id) => getVar(env, id)
     case LispList(Nil) => value.point[IOThrowsError]
-    case v => LispEnv.throwError(BadSpecialForm("Unrecognized special form", v))
+    case v => throwError(BadSpecialForm("Unrecognized special form", v))
   }
 }
