@@ -61,17 +61,20 @@ trait LispEnv {
     case \/-(v) => v.point[IOThrowsError]
   }
 
-  /*
   def bindVars(envRef: Env, bindings: List[(String, LispVal)]): IO[Env] = {
-    def addBinding(varName: String, value: LispVal) = for {
+    def addBinding(varName: String)(value: LispVal): IO[(String, IORef[LispVal])] = for {
       ref <- IO.newIORef(value)
     } yield(varName, ref)
 
-    def extendEnv(bindings: List[(String, LispVal)], env: Env) =
-      env.map(bindings.map(x => addBinding(x._1, x._2)) ++ _)
+    def extendEnv(bindings: List[(String, LispVal)], env: IO[List[(String, IORef[LispVal])]]): IO[List[(String, IORef[LispVal])]] = for {
+      newEnv <- bindings.map(v => addBinding(v._1)(v._2)).sequence[IO, (String, IORef[LispVal])]
+      oldEnv <- env
+    } yield newEnv ++ oldEnv
 
-    IO.newIORef(extendEnv(envRef.read, envRef))
+    for {
+      newEnv <- extendEnv(bindings, envRef.read)
+      result <- IO.newIORef(newEnv)
+    } yield result
   }
-  */
 }
 

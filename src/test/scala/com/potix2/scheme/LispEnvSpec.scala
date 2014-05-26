@@ -2,6 +2,7 @@ package com.potix2.scheme
 
 import org.specs2.mutable.Specification
 import Lisp._
+import scalaz.effect.IO
 
 class LispEnvSpec extends Specification with LispEnv {
 
@@ -54,6 +55,14 @@ class LispEnvSpec extends Specification with LispEnv {
         _ <- defineVar(e, "a", LispInteger(200))
         v <- getVar(e, "a")
       } yield v).toEither.unsafePerformIO() must beRight(LispInteger(200))
+    }
+  }
+
+  "bindVars" should {
+    "concatenate new bindings to passed environment" in {
+      val e = bindVars(env.unsafePerformIO(), List(("a", LispInteger(1)), ("b", LispInteger(2)))).unsafePerformIO()
+      getVar(e, "b").toEither.unsafePerformIO() must beRight(LispInteger(2))
+      getVar(e, "a").toEither.unsafePerformIO() must beRight(LispInteger(1))
     }
   }
 }
