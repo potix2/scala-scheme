@@ -66,15 +66,11 @@ trait LispEnv {
       ref <- IO.newIORef(value)
     } yield(varName, ref)
 
-    def extendEnv(bindings: List[(String, LispVal)], env: IO[List[(String, IORef[LispVal])]]): IO[List[(String, IORef[LispVal])]] = for {
+    def extendEnv(bindings: List[(String, LispVal)])(env: List[(String, IORef[LispVal])]): IO[List[(String, IORef[LispVal])]] = for {
       newEnv <- bindings.map(v => addBinding(v._1)(v._2)).sequence[IO, (String, IORef[LispVal])]
-      oldEnv <- env
-    } yield newEnv ++ oldEnv
+    } yield newEnv ++ env
 
-    for {
-      newEnv <- extendEnv(bindings, envRef.read)
-      result <- IO.newIORef(newEnv)
-    } yield result
+    envRef.read >>= extendEnv(bindings) >>= (x=> IO.newIORef(x))
   }
 }
 
