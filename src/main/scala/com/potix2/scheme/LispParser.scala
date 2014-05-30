@@ -118,8 +118,8 @@ trait LispParser extends RegexParsers {
     "'" ~> datum ^^ (x => LispList(List(LispAtom("quote"), x)))
 
   def procedure_call: Parser[LispVal] =
-    "(" ~> operator ~ spaces ~ repsep(operand, spaces) <~ ")" ^^
-      { case op~s~ops => LispList(List(op) ++ ops)}
+    "(" ~> operator ~ rep(spaces) ~ repsep(operand, spaces) ~ rep(spaces) <~ ")" ^^
+      { case op~s~ops~ss => LispList(List(op) ++ ops)}
 
   def operator: Parser[LispVal] = expression
   def operand: Parser[LispVal] = expression

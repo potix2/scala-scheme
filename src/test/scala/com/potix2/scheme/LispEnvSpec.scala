@@ -31,12 +31,12 @@ class LispEnvSpec extends Specification with LispEnv {
   }
   "setVar" should {
     "throw UnboundVar error when the passed var doesn't exist" in {
-      setVar(nullEnv.unsafePerformIO(), "a", LispInteger(1)).toEither.unsafePerformIO() must beLeft(beAnInstanceOf[UnboundVar])
+      setVar(nullEnv.unsafePerformIO())("a")(LispInteger(1)).toEither.unsafePerformIO() must beLeft(beAnInstanceOf[UnboundVar])
     }
     "return LispVal when the passed var exists in an environment" in {
       (for {
         e <- env.liftIO[IOThrowsError]
-        _ <- setVar(e, "a", LispInteger(2))
+        _ <- setVar(e)("a")(LispInteger(2))
         v <- getVar(e, "a")
       } yield v).toEither.unsafePerformIO() must beRight(LispInteger(2))
     }
@@ -45,14 +45,14 @@ class LispEnvSpec extends Specification with LispEnv {
     "bind new value when the passed var doesn't exist" in {
       (for {
         e <- nullEnv.liftIO[IOThrowsError]
-        _ <- defineVar(e, "a", LispInteger(100))
+        _ <- defineVar(e)("a")(LispInteger(100))
         v <- getVar(e, "a")
       } yield v).toEither.unsafePerformIO() must beRight(LispInteger(100))
     }
     "set new value when the passed var exists" in {
       (for {
         e <- env.liftIO[IOThrowsError]
-        _ <- defineVar(e, "a", LispInteger(200))
+        _ <- defineVar(e)("a")(LispInteger(200))
         v <- getVar(e, "a")
       } yield v).toEither.unsafePerformIO() must beRight(LispInteger(200))
     }
@@ -60,7 +60,7 @@ class LispEnvSpec extends Specification with LispEnv {
 
   "bindVars" should {
     "concatenate new bindings to passed environment" in {
-      val e = bindVars(env.unsafePerformIO(), List(("a", LispInteger(1)), ("b", LispInteger(2)))).unsafePerformIO()
+      val e = bindVars(env.unsafePerformIO)(List(("a", LispInteger(1)), ("b", LispInteger(2)))).unsafePerformIO()
       getVar(e, "b").toEither.unsafePerformIO() must beRight(LispInteger(2))
       getVar(e, "a").toEither.unsafePerformIO() must beRight(LispInteger(1))
     }

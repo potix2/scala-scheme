@@ -2,6 +2,7 @@ package com.potix2.scheme
 
 import scalaz._
 import Scalaz._
+import scalaz._
 import scalaz.effect._
 
 trait LispEnv {
@@ -36,7 +37,7 @@ trait LispEnv {
       }
     } yield value
 
-  def setVar(envRef: Env, varName: String, value: LispVal): IOThrowsError[LispVal] = for {
+  def setVar(envRef: Env)(varName: String)(value: LispVal): IOThrowsError[LispVal] = for {
     env <- envRef.read.liftIO[IOThrowsError]
     _ <- lookup(env, varName) match {
       case Some(ioRef) => ioRef.write(value).liftIO[IOThrowsError]
@@ -44,10 +45,10 @@ trait LispEnv {
     }
   } yield value
 
-  def defineVar(envRef: Env, varName: String, value: LispVal): IOThrowsError[LispVal] = for {
+  def defineVar(envRef: Env)(varName: String)(value: LispVal): IOThrowsError[LispVal] = for {
     alreadyDefined <- isBound(envRef, varName).liftIO[IOThrowsError]
     v <- if (alreadyDefined)
-      setVar(envRef, varName, value)
+      setVar(envRef)(varName)(value)
     else
       (for {
         valueRef <- IO.newIORef(value)
@@ -61,12 +62,12 @@ trait LispEnv {
     case \/-(v) => v.point[IOThrowsError]
   }
 
-  def bindVars(envRef: Env, bindings: List[(String, LispVal)]): IO[Env] = {
-    def addBinding(varName: String)(value: LispVal): IO[(String, IORef[LispVal])] = for {
+  def bindVars(envRef: Env)(bindings: List[(String, LispVal)]): IO[Env] = {
+    def addBinding(varName: String)(value: LispVal) = for {
       ref <- IO.newIORef(value)
     } yield(varName, ref)
 
-    def extendEnv(bindings: List[(String, LispVal)])(env: List[(String, IORef[LispVal])]): IO[List[(String, IORef[LispVal])]] = for {
+    def extendEnv(bindings: List[(String, LispVal)])(env: List[(String, IORef[LispVal])]) = for {
       newEnv <- bindings.map(v => addBinding(v._1)(v._2)).sequence[IO, (String, IORef[LispVal])]
     } yield newEnv ++ env
 

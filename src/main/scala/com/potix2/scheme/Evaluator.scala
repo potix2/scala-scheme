@@ -4,6 +4,7 @@ import scala.reflect.{ClassTag, classTag}
 import com.potix2.scheme.Lisp._
 import scalaz._
 import scalaz.Scalaz._
+import scalaz.effect.IO
 
 trait Evaluator { self: LispEnv =>
 
@@ -171,11 +172,41 @@ trait Evaluator { self: LispEnv =>
     result <- if (testResult == LispBool(false)) None.point[IOThrowsError] else body.map(eval(env)).sequence[IOThrowsError, LispVal].map(x => x.lastOption.getOrElse(testResult).some)
   } yield result
 
-  def lispApply(env: Env, sym: String, args: List[LispVal]): IOThrowsError[LispVal] = primitives.
-    collectFirst { case (s,f) if s == sym => args.map(eval(env)).
-    sequence[IOThrowsError, LispVal].
-    flatMap(x => liftThrows(f(x))) }
-    .getOrElse(throwError(NotFunction("Unrecognized primitives function args", sym)))
+  def lispApply(env: Env, sym: LispVal, args: List[LispVal]): IOThrowsError[LispVal] = sym match {
+    case LispPrimitiveFunc(func) => liftThrows(func(args))
+    case LispFunc(params, varargs, body, closure) => {
+      def remainingArgs = args.drop(params.length)
+      def evalBody(env: Env): IOThrowsError[LispVal] = body.map(eval(env)).sequence[IOThrowsError, LispVal].map(_.last)
+      def bindVarArgs(arg: Option[String])(env: Env) = arg match {
+        case Some(argName) => bindVars(env)(List((argName, LispList(remainingArgs)))).liftIO[IOThrowsError]
+        case None => env.point[IOThrowsError]
+      }
+
+      if(params.length != args.length && !varargs.isDefined)
+        throwError(NumArgs(params.length, args))
+      else
+        for {
+          e1 <- bindVars(closure)(params.zip(args)).liftIO[IOThrowsError]
+          e2 <- bindVarArgs(varargs)(e1)
+          e3 <- evalBody(e2)
+        } yield e3
+    }
+    case _ => throwError(NotFunction("not function", sym.toString))
+  }
+
+  def makeFunc(varargs: Option[String])(envRef: Env)(params: List[LispVal])(body: List[LispVal]):IOThrowsError[LispVal] =
+    LispFunc(params.map(_.toString), varargs, body, envRef).point[IOThrowsError]
+
+  def makeNormalFunc(envRef: Env)(params: List[LispVal])(body: List[LispVal]) =
+    makeFunc(None)(envRef)(params)(body)
+
+  def makeVarargs(value: LispVal)(envRef: Env)(params: List[LispVal])(body: List[LispVal]) =
+    makeFunc(Some(value.toString))(envRef)(params)(body)
+
+  def primitiveBindings: IO[Env] = {
+    def makePrimitiveFunc(sym:String, func: List[LispVal] => ThrowsError[LispVal]) = (sym, LispPrimitiveFunc(func))
+    nullEnv >>= FuncUtil.flip(bindVars)(primitives.map(y => makePrimitiveFunc(y._1, y._2)))
+  }
 
   def ifExpr(env: Env, pred: LispVal, coseq: LispVal, alt: LispVal): IOThrowsError[LispVal] =for {
     cond <- eval(env)(pred)
@@ -185,18 +216,38 @@ trait Evaluator { self: LispEnv =>
     }
   } yield result
 
-  def eval(env: Env)(value: LispVal): IOThrowsError[LispVal] = value match {
-    case LispList(List(LispAtom("quote"), v)) => v.point[IOThrowsError]
-    case LispList(List(LispAtom("if"), pred, coseq, alt)) => ifExpr(env, pred, coseq, alt)
-    case LispList(LispAtom("cond") :: clauses) => exprCond(env, clauses)
-    case LispList(LispAtom("define") :: LispAtom(v) :: form :: Nil) => defineVar(env, v, form)
-    case LispList(LispAtom("set!") :: LispAtom(v) :: form :: Nil) => setVar(env, v, form)
-    case LispList(LispAtom(func) :: args) => lispApply(env, func, args)
-    case s:LispString => s.point[IOThrowsError]
-    case n:LispNumber => n.point[IOThrowsError]
-    case b:LispBool   => b.point[IOThrowsError]
-    case LispAtom(id) => getVar(env, id)
-    case LispList(Nil) => value.point[IOThrowsError]
-    case v => throwError(BadSpecialForm("Unrecognized special form", v))
+  def eval(env: Env)(value: LispVal): IOThrowsError[LispVal] = {
+    value match {
+      case LispList(List(LispAtom("quote"), v)) => v.point[IOThrowsError]
+      case LispList(List(LispAtom("if"), pred, coseq, alt)) => ifExpr(env, pred, coseq, alt)
+      case LispList(LispAtom("cond") :: clauses) => exprCond(env, clauses)
+      case LispList(LispAtom("define") :: LispList(LispAtom(varName) :: params) :: body) =>
+        for {
+          f <- makeNormalFunc(env)(params)(body)
+          result <- defineVar(env)(varName)(f)
+        } yield result
+      case LispList(LispAtom("define") :: LispDottedList(LispAtom(varName) :: params, varargs) :: body) =>
+        for {
+          f <- makeVarargs(varargs)(env)(params)(body)
+          result <- defineVar(env)(varName)(f)
+        } yield result
+      case LispList(LispAtom("define") :: LispAtom(varName) :: form :: Nil) => eval(env)(form) >>= defineVar(env)(varName)
+      case LispList(LispAtom("lambda") :: LispList(params) :: body) => makeNormalFunc(env)(params)(body)
+      case LispList(LispAtom("lambda") :: LispDottedList(params, varargs) :: body) => makeVarargs(varargs)(env)(params)(body)
+      case LispList(LispAtom("lambda") :: LispAtom(x) :: body) => makeVarargs(LispAtom(x))(env)(List())(body)
+      case LispList(LispAtom("set!") :: LispAtom(v) :: form :: Nil) => eval(env)(form) >>= setVar(env)(v)
+      case LispList(func :: args) => for {
+        f <- eval(env)(func)
+        argVals <- args.map(eval(env)).sequence[IOThrowsError, LispVal]
+        result <- lispApply(env, f, argVals)
+      } yield result
+
+      case s:LispString => s.point[IOThrowsError]
+      case n:LispNumber => n.point[IOThrowsError]
+      case b:LispBool   => b.point[IOThrowsError]
+      case LispAtom(id) => getVar(env, id)
+      case LispList(Nil) => value.point[IOThrowsError]
+      case v => throwError(BadSpecialForm("Unrecognized special form", v))
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.potix2.scheme
 
 import scalaz._
+import Scalaz._
 import scalaz.effect.{IO, IORef, MonadIO}
 
 object Lisp {
@@ -44,15 +45,11 @@ object MyLisp extends App with LispParser with Evaluator with LispEnv {
         _ <- until_(pred)(prompt)(action)
       } yield ()).unsafePerformIO()
 
-  def runOne(expr: String): IO[Unit] = for {
-    env <- nullEnv
-    _ <- evalAndPrint(env)(expr)
-  } yield()
+  def runOne(expr: String): IO[Unit] =
+    primitiveBindings >>= (e => FuncUtil.flip(evalAndPrint)(expr)(e))
 
-  def runRepl: IO[Unit] = for {
-    env <- nullEnv
-    _ <- until_((x:String) => x == "quit")(readPrompt("lisp>> "))(evalAndPrint(env))
-  } yield()
+  def runRepl: IO[Unit] =
+    primitiveBindings >>= (e => until_((x:String) => x == "quit")(readPrompt("lisp>> "))(evalAndPrint(e)))
 
   override def main(args: Array[String]) = {
     if ( args.length == 0 )

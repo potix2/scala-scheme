@@ -116,8 +116,8 @@ class EvaluatorSpec extends SpecificationWithJUnit {
     "(cond (#f 1 2) (#t 3 4))" in { eval(makeExpr("cond", LispList(List(LispBool(false), LispInteger(1), LispInteger(2))), LispList(List(LispBool(true), LispInteger(3), LispInteger(4))))) must beLispVal(LispInteger(4)) }
     "(cond (#f 1 2) (else 3 4))" in { eval(makeExpr("cond", LispList(List(LispBool(false), LispInteger(1), LispInteger(2))), LispList(List(LispAtom("else"), LispInteger(3), LispInteger(4))))) must beLispVal(LispInteger(4)) }
     "(cond (1))" in { eval(makeExpr("cond", LispList(List(LispInteger(1))))) must beLispVal(LispInteger(1))}
-    "(cond ((\"a\")))" in { eval(makeExpr("cond", LispList(List(LispList(List(LispString("a"))))))) must haveError[BadSpecialForm] }
-    "(cond (1 (\"a\") 2))" in { eval(makeExpr("cond", LispList(List(LispInteger(1), LispList(List(LispString("a"))), LispInteger(2))))) must haveError[BadSpecialForm] }
+    "(cond ((\"a\")))" in { eval(makeExpr("cond", LispList(List(LispList(List(LispString("a"))))))) must haveError[NotFunction] }
+    "(cond (1 (\"a\") 2))" in { eval(makeExpr("cond", LispList(List(LispInteger(1), LispList(List(LispString("a"))), LispInteger(2))))) must haveError[NotFunction] }
     "(cond (1 => number?))" in { eval(makeExpr("cond", LispList(List(LispInteger(1),LispAtom("=>"), LispAtom("number?"))))) must beLispVal(LispBool(true))}
   }
 
@@ -127,7 +127,9 @@ class EvaluatorSpec extends SpecificationWithJUnit {
   def makeExpr(sym:String, values: LispVal*): LispList =
     LispList(LispAtom(sym) :: values.toList)
 
-  def eval(value: LispVal) = evaluator.eval(evaluator.nullEnv.unsafePerformIO())(value)
+  def eval(value: LispVal) = {
+    evaluator.eval(evaluator.primitiveBindings.unsafePerformIO())(value)
+  }
 
   def beLispVal(expected:LispVal): Matcher[IOThrowsError[LispVal]] = { value: IOThrowsError[LispVal] =>
     value.toEither.unsafePerformIO() must beRight(expected)
