@@ -8,21 +8,16 @@ trait LispParser extends RegexParsers {
   import Lisp._
 
   override val whiteSpace = "".r
-  def readExpr(input: String): ThrowsError[LispVal] = {
-    parseAll(program, input) match {
-      case Failure(msg, in) => ParseFailure(msg).left[LispVal]
+  def readOrThrow[A](parser: Parser[A], input: String): ThrowsError[A] =
+    parseAll(parser, input) match {
+      case Failure(msg, in) => ParseFailure(msg).left[A]
       case Success(result, next) => result.point[ThrowsError]
     }
-  }
+
+  def readExpr(input: String): ThrowsError[LispVal] = readOrThrow(command, input)
+  def readExprList(input: String): ThrowsError[List[LispVal]] = readOrThrow(program, input)
 
   //7.1.1 Lexical structure
-  //TODO: inline_hex_digitsに対応する
-  def token: Parser[LispVal] =
-    identifier |
-    boolean |
-    string |
-    number
-
   def identifier: Parser[LispAtom] =
     initial ~ rep(subsequent) ^^ { case x~xs => LispAtom(xs.foldLeft(x)(_ + _)) } |
     "|" ~> rep(symbol_element) <~ "|" ^^ { case xs => LispAtom(xs.foldLeft("")(_ + _)) } |
@@ -124,6 +119,6 @@ trait LispParser extends RegexParsers {
   def operator: Parser[LispVal] = expression
   def operand: Parser[LispVal] = expression
 
-  def command: Parser[LispVal] = expression
-  def program: Parser[LispVal] = command
+  def command: Parser[LispVal] = rep(spaces) ~> expression <~ rep(spaces)
+  def program: Parser[List[LispVal]] = rep(spaces) ~> repsep(expression, spaces) <~ rep(spaces)
 }

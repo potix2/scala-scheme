@@ -2,11 +2,22 @@ package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
 import com.potix2.scheme.Lisp._
-import scalaz._
 import scalaz.Scalaz._
 import scalaz.effect.IO
+import java.io._
+import scala.Some
+import scalaz.\/-
+import scalaz.-\/
 
-trait Evaluator { self: LispEnv =>
+object Port {
+  def getReader(reader: => Reader): IO[BufferedReader] = IO(new BufferedReader(reader))
+  def getWriter(writer: => Writer): IO[BufferedWriter] = IO(new BufferedWriter(writer))
+
+  def closeReader(reader: BufferedReader):IO[Unit] = IO(reader.close())
+  def closeWriter(writer: BufferedWriter):IO[Unit] = IO(writer.close())
+}
+
+trait Evaluator { self: LispEnv with LispParser =>
 
   val primitives = List(
     ("+", numericBinop (_ + _)),
@@ -46,6 +57,18 @@ trait Evaluator { self: LispEnv =>
     ("string?", typeTestOp[LispString]),
     ("symbol?", typeTestOp[LispAtom]),
     ("number?", typeTestOp[LispInteger])
+  )
+
+  val ioPrimitives = List(
+    ("apply", applyProc _),
+    ("open-input-file", makeReaderPort _),
+    ("open-output-file", makeWriterPort _),
+    ("close-input-port", closePort _),
+    ("close-output-port", closePort _),
+    ("read", readProc _),
+    ("write", writeProc _),
+    ("read-contents", readContents _),
+    ("read-all", readAll _)
   )
 
   def typeTestOp[A <: LispVal: ClassTag]: List[LispVal] => ThrowsError[LispVal] = {
@@ -172,7 +195,7 @@ trait Evaluator { self: LispEnv =>
     result <- if (testResult == LispBool(false)) None.point[IOThrowsError] else body.map(eval(env)).sequence[IOThrowsError, LispVal].map(x => x.lastOption.getOrElse(testResult).some)
   } yield result
 
-  def lispApply(env: Env, sym: LispVal, args: List[LispVal]): IOThrowsError[LispVal] = sym match {
+  def _apply(func: LispVal, args: List[LispVal]): IOThrowsError[LispVal] = func match {
     case LispPrimitiveFunc(func) => liftThrows(func(args))
     case LispFunc(params, varargs, body, closure) => {
       def remainingArgs = args.drop(params.length)
@@ -191,7 +214,8 @@ trait Evaluator { self: LispEnv =>
           e3 <- evalBody(e2)
         } yield e3
     }
-    case _ => throwError(NotFunction("not function", sym.toString))
+    case LispIOFunc(func) => func(args)
+    case _ => throwError(NotFunction("not function", func.toString))
   }
 
   def makeFunc(varargs: Option[String])(envRef: Env)(params: List[LispVal])(body: List[LispVal]):IOThrowsError[LispVal] =
@@ -203,12 +227,65 @@ trait Evaluator { self: LispEnv =>
   def makeVarargs(value: LispVal)(envRef: Env)(params: List[LispVal])(body: List[LispVal]) =
     makeFunc(Some(value.toString))(envRef)(params)(body)
 
-  def primitiveBindings: IO[Env] = {
-    def makePrimitiveFunc(sym:String, func: List[LispVal] => ThrowsError[LispVal]) = (sym, LispPrimitiveFunc(func))
-    nullEnv >>= FuncUtil.flip(bindVars)(primitives.map(y => makePrimitiveFunc(y._1, y._2)))
+  def makeReaderPort(values: List[LispVal]): IOThrowsError[LispVal] = values match {
+    case LispString(fileName) :: _ => Port.getReader(new FileReader(fileName)).liftIO[IOThrowsError].map(LispReaderPort(_))
   }
 
-  def ifExpr(env: Env, pred: LispVal, coseq: LispVal, alt: LispVal): IOThrowsError[LispVal] =for {
+  def makeWriterPort(values: List[LispVal]): IOThrowsError[LispVal] = values match {
+    case LispString(fileName) :: _ => Port.getWriter(new FileWriter(fileName)).liftIO[IOThrowsError].map(LispWriterPort(_))
+  }
+
+  def closePort(values: List[LispVal]): IOThrowsError[LispVal] = (values match {
+    case LispReaderPort(reader) :: Nil => { reader.close(); LispBool(true) }
+    case LispWriterPort(writer) :: Nil => { writer.close(); LispBool(true) }
+    case _ => LispBool(false)
+  }).point[IOThrowsError]
+
+  def readProc(values: List[LispVal]): IOThrowsError[LispVal] = values match {
+    case Nil => for {
+      port <- Port.getReader(new InputStreamReader(System.in)).map(LispReaderPort(_)).liftIO[IOThrowsError]
+      result <- readProc(List(port))
+    } yield result
+    case LispReaderPort(reader) :: Nil => for {
+      input <- IO(reader.readLine()).liftIO[IOThrowsError]
+      result <- liftThrows(readExpr(input))
+    } yield result
+  }
+
+  def writeProc(values: List[LispVal]): IOThrowsError[LispVal] = values match {
+    case v :: Nil => for {
+      port <- Port.getWriter(new OutputStreamWriter(System.out)).map(LispWriterPort(_)).liftIO[IOThrowsError]
+      result <- writeProc(List(v, port))
+    } yield result
+    case v :: LispWriterPort(writer) :: Nil => for {
+      _ <- IO(writer.write(v.toString)).liftIO[IOThrowsError]
+    } yield LispBool(true)
+  }
+
+  def readContents(values: List[LispVal]): IOThrowsError[LispVal] = values match {
+    case LispString(fileName) :: Nil => IO(LispString(scala.io.Source.fromFile(fileName).mkString)).liftIO[IOThrowsError]
+  }
+
+  def load(fileName: String): IOThrowsError[List[LispVal]] = for {
+    contents <- IO(scala.io.Source.fromFile(fileName).mkString).liftIO[IOThrowsError]
+    result <- liftThrows(readExprList(contents))
+  } yield result
+
+  def readAll(values: List[LispVal]): IOThrowsError[LispVal] = values match {
+    case LispString(fileName) :: Nil => load(fileName).map(LispList(_))
+  }
+
+  def applyProc(values: List[LispVal]): IOThrowsError[LispVal] = values match {
+    case func :: LispList(args) :: Nil => _apply(func, args)
+    case func :: args => _apply(func, args)
+  }
+
+  def primitiveBindings: IO[Env] = {
+    nullEnv >>= FuncUtil.flip(bindVars)(ioPrimitives.map(y => (y._1, LispIOFunc(y._2)))
+      ++ primitives.map(y => (y._1, LispPrimitiveFunc(y._2))))
+  }
+
+  def ifExpr(env: Env, pred: LispVal, coseq: LispVal, alt: LispVal): IOThrowsError[LispVal] = for {
     cond <- eval(env)(pred)
     result <- cond match {
       case LispBool(false) => eval(env)(alt)
@@ -216,38 +293,37 @@ trait Evaluator { self: LispEnv =>
     }
   } yield result
 
-  def eval(env: Env)(value: LispVal): IOThrowsError[LispVal] = {
-    value match {
-      case LispList(List(LispAtom("quote"), v)) => v.point[IOThrowsError]
-      case LispList(List(LispAtom("if"), pred, coseq, alt)) => ifExpr(env, pred, coseq, alt)
-      case LispList(LispAtom("cond") :: clauses) => exprCond(env, clauses)
-      case LispList(LispAtom("define") :: LispList(LispAtom(varName) :: params) :: body) =>
-        for {
-          f <- makeNormalFunc(env)(params)(body)
-          result <- defineVar(env)(varName)(f)
-        } yield result
-      case LispList(LispAtom("define") :: LispDottedList(LispAtom(varName) :: params, varargs) :: body) =>
-        for {
-          f <- makeVarargs(varargs)(env)(params)(body)
-          result <- defineVar(env)(varName)(f)
-        } yield result
-      case LispList(LispAtom("define") :: LispAtom(varName) :: form :: Nil) => eval(env)(form) >>= defineVar(env)(varName)
-      case LispList(LispAtom("lambda") :: LispList(params) :: body) => makeNormalFunc(env)(params)(body)
-      case LispList(LispAtom("lambda") :: LispDottedList(params, varargs) :: body) => makeVarargs(varargs)(env)(params)(body)
-      case LispList(LispAtom("lambda") :: LispAtom(x) :: body) => makeVarargs(LispAtom(x))(env)(List())(body)
-      case LispList(LispAtom("set!") :: LispAtom(v) :: form :: Nil) => eval(env)(form) >>= setVar(env)(v)
-      case LispList(func :: args) => for {
-        f <- eval(env)(func)
-        argVals <- args.map(eval(env)).sequence[IOThrowsError, LispVal]
-        result <- lispApply(env, f, argVals)
+  def eval(env: Env)(value: LispVal): IOThrowsError[LispVal] = value match {
+    case LispList(List(LispAtom("quote"), v)) => v.point[IOThrowsError]
+    case LispList(List(LispAtom("if"), pred, coseq, alt)) => ifExpr(env, pred, coseq, alt)
+    case LispList(LispAtom("cond") :: clauses) => exprCond(env, clauses)
+    case LispList(LispAtom("define") :: LispList(LispAtom(varName) :: params) :: body) =>
+      for {
+        f <- makeNormalFunc(env)(params)(body)
+        result <- defineVar(env)(varName)(f)
       } yield result
+    case LispList(LispAtom("define") :: LispDottedList(LispAtom(varName) :: params, varargs) :: body) =>
+      for {
+        f <- makeVarargs(varargs)(env)(params)(body)
+        result <- defineVar(env)(varName)(f)
+      } yield result
+    case LispList(LispAtom("define") :: LispAtom(varName) :: form :: Nil) => eval(env)(form) >>= defineVar(env)(varName)
+    case LispList(LispAtom("lambda") :: LispList(params) :: body) => makeNormalFunc(env)(params)(body)
+    case LispList(LispAtom("lambda") :: LispDottedList(params, varargs) :: body) => makeVarargs(varargs)(env)(params)(body)
+    case LispList(LispAtom("lambda") :: LispAtom(x) :: body) => makeVarargs(LispAtom(x))(env)(List())(body)
+    case LispList(LispAtom("set!") :: LispAtom(v) :: form :: Nil) => eval(env)(form) >>= setVar(env)(v)
+    case LispList(LispAtom("load") :: LispString(fileName) :: Nil) => load(fileName) >>= (x => x.map(eval(env)(_)).sequence[IOThrowsError, LispVal].map(_.last))
+    case LispList(func :: args) => for {
+      f <- eval(env)(func)
+      argVals <- args.map(eval(env)).sequence[IOThrowsError, LispVal]
+      result <- _apply(f, argVals)
+    } yield result
 
-      case s:LispString => s.point[IOThrowsError]
-      case n:LispNumber => n.point[IOThrowsError]
-      case b:LispBool   => b.point[IOThrowsError]
-      case LispAtom(id) => getVar(env, id)
-      case LispList(Nil) => value.point[IOThrowsError]
-      case v => throwError(BadSpecialForm("Unrecognized special form", v))
-    }
+    case s:LispString => s.point[IOThrowsError]
+    case n:LispNumber => n.point[IOThrowsError]
+    case b:LispBool   => b.point[IOThrowsError]
+    case LispAtom(id) => getVar(env, id)
+    case LispList(Nil) => value.point[IOThrowsError]
+    case v => throwError(BadSpecialForm("Unrecognized special form", v))
   }
 }

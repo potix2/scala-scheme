@@ -2,6 +2,7 @@ package com.potix2.scheme
 
 import scalaz.effect.{IO, IORef}
 import Lisp._
+import java.io.{BufferedWriter, BufferedReader, Writer, Reader}
 
 sealed trait LispVal {
   def toIORef:IORef[LispVal] = IO.newIORef(this).unsafePerformIO()
@@ -21,6 +22,9 @@ sealed trait LispVal {
     case LispVector(xs)  => "#(" + xs.foldLeft("")((b,a) => a.toString() + " " + b) + ")"
     case LispPrimitiveFunc(_) => "<primitive>"
     case LispFunc(args, varargs, body, env) => "(lambda (" + unwords(args) + varargs.map(" . " + _) + ") ...)"
+    case _ : LispReaderPort => "<IO port>"
+    case _ : LispWriterPort => "<IO port>"
+    case _ : LispIOFunc => "<IO primitive>"
   }
 }
 
@@ -28,10 +32,6 @@ case class LispAtom(value: String) extends LispVal
 case class LispList(value: List[LispVal]) extends LispVal
 case class LispDottedList(list: List[LispVal], value: LispVal) extends LispVal
 abstract trait LispNumber extends LispVal
-//case class LispComplex(r: Double, i: Double) extends LispNumber
-//case class LispReal(value: Double) extends LispNumber
-//case class LispUReal(value: Int) extends LispNumber
-//case class LispDecimal(value: Int) extends LispNumber
 case class LispInteger(value: Int) extends LispNumber
 case class LispString(value: String) extends LispVal
 case class LispBool(value: Boolean) extends LispVal
@@ -39,6 +39,13 @@ case class LispChar(value: String) extends LispVal
 case class LispVector(value: Vector[LispVal]) extends LispVal
 case class LispPrimitiveFunc(value: List[LispVal] => ThrowsError[LispVal]) extends LispVal
 case class LispFunc(params: List[String], vararg: Option[String], body: List[LispVal], closure: Env) extends LispVal
+case class LispIOFunc(params: List[LispVal] => IOThrowsError[LispVal]) extends LispVal
+case class LispReaderPort(reader: BufferedReader) extends LispVal {
+  def close = reader.close()
+}
+case class LispWriterPort(writer: BufferedWriter) extends LispVal {
+  def close = writer.close()
+}
 
 sealed trait Radix
 case class Binary extends Radix

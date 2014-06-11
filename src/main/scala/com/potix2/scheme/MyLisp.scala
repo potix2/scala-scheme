@@ -45,16 +45,16 @@ object MyLisp extends App with LispParser with Evaluator with LispEnv {
         _ <- until_(pred)(prompt)(action)
       } yield ()).unsafePerformIO()
 
-  def runOne(expr: String): IO[Unit] =
-    primitiveBindings >>= (e => FuncUtil.flip(evalAndPrint)(expr)(e))
+  def runOne(args: Array[String]): IO[Unit] = for {
+    env <- (primitiveBindings >>= FuncUtil.flip(bindVars)(List(("args", LispList(args.drop(1).map(LispString(_)).toList)))))
+    result <- runIOThrows(eval(env)(LispList(List(LispAtom("load"), LispString(args(0))))).map(_.toString))
+    _ <- IO.putStrLn(result)
+  } yield ()
 
   def runRepl: IO[Unit] =
     primitiveBindings >>= (e => until_((x:String) => x == "quit")(readPrompt("lisp>> "))(evalAndPrint(e)))
 
   override def main(args: Array[String]) = {
-    if ( args.length == 0 )
-      runRepl.unsafePerformIO()
-    else
-      runOne(args(0)).unsafePerformIO()
+    (if ( args.length == 0 ) runRepl else runOne(args)).unsafePerformIO()
   }
 }

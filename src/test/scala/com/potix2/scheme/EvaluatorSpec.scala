@@ -1,9 +1,10 @@
 package com.potix2.scheme
 
-import com.potix2.scheme.Lisp._
-import org.specs2.mutable.SpecificationWithJUnit
-import org.specs2.matcher.Matcher
 import scala.reflect.ClassTag
+
+import com.potix2.scheme.Lisp._
+import org.specs2.matcher.Matcher
+import org.specs2.mutable.SpecificationWithJUnit
 
 class EvaluatorSpec extends SpecificationWithJUnit {
   val evaluator = new Evaluator with LispEnv
