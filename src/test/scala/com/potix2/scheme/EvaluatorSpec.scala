@@ -7,7 +7,7 @@ import org.specs2.matcher.Matcher
 import org.specs2.mutable.SpecificationWithJUnit
 
 class EvaluatorSpec extends SpecificationWithJUnit {
-  val evaluator = new Evaluator with LispEnv
+  val evaluator = new Evaluator with LispEnv with LispParser
 
   "eval an atom" should {
     "return the atom" in {
