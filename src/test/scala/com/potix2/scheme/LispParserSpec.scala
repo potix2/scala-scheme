@@ -73,13 +73,13 @@ class LispParserSpec extends SpecificationWithJUnit {
       parser.readExpr("a") must beLispVal(LispAtom("a"))
     }
     "(a b . c)" in {
-      parser.parseAll(parser.datum, "(a b . c)").get must_== LispDottedList(List(LispAtom("a"), LispAtom("b")), LispAtom("c"))
+      parser.readExpr("(a b . c)") must beLispVal(LispDottedList(List(LispAtom("a"), LispAtom("b")), LispAtom("c")))
     }
     "(define (list . objs) objs)" in {
-      parser.parseAll(parser.datum, "(define (list . objs) objs)").get must_== LispList(List(LispAtom("define"), LispDottedList(List(LispAtom("list")), LispAtom("objs")), LispAtom("objs")))
+      parser.readExpr("(define (list . objs) objs)") must beLispVal(LispList(List(LispAtom("define"), LispDottedList(List(LispAtom("list")), LispAtom("objs")), LispAtom("objs"))))
     }
     "()" in {
-      parser.parseAll(parser.datum, "()").get must_== LispList(List())
+      parser.readExpr("()") must beLispVal(LispList(List()))
     }
   }
 

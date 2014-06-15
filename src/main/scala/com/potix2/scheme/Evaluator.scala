@@ -145,11 +145,12 @@ trait Evaluator { self: LispEnv with LispParser =>
     case LispString(s1)::LispString(s2)::Nil => LispBool(s1 == s2).point[ThrowsError]
     case LispAtom(a1)::LispAtom(a2)::Nil => LispBool(a1 == a2).point[ThrowsError]
     case LispDottedList(xs1, x1)::LispDottedList(xs2,x2)::Nil => eqvExpr(List(LispList(xs1 ++ List(x1)), LispList(xs2 ++ List(x2))))
-    case LispList(xs1)::LispList(xs2)::Nil => LispBool(xs1 zip xs2 forall { s =>
-      eqvExpr(List(s._1,s._2)) match {
-        case -\/(err) => false
-        case \/-(LispBool(v)) => v
-      }}).point[ThrowsError]
+    case LispList(xs1)::LispList(xs2)::Nil =>
+      LispBool(xs1.length == xs2.length && (xs1 zip xs2 forall { s =>
+        eqvExpr(List(s._1,s._2)) match {
+          case -\/(err) => false
+          case \/-(LispBool(v)) => v
+        }})).point[ThrowsError]
     case _::_::Nil => LispBool(false).point[ThrowsError]
     case badArgList => NumArgs(2, badArgList).left[LispVal]
   }

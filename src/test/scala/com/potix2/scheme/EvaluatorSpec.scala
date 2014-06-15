@@ -104,6 +104,8 @@ class EvaluatorSpec extends SpecificationWithJUnit {
     "(eqv? 'a 'b)" in { eval(makeExpr("eqv?", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispAtom("b")))) must beLispVal(LispBool(false)) }
     "(eqv? '(a . b) '(a . a))" in { eval(makeExpr("eqv?", makeDottedList(List(LispAtom("a")), LispAtom("b")), makeDottedList(List(LispAtom("a")), LispAtom("a")))) must beLispVal(LispBool(false)) }
     "(eqv? 1 2 3)" in { eval(makeExpr("eqv?", LispInteger(1), LispInteger(2), LispInteger(3))) must haveError[NumArgs] }
+    "(eqv? '() '())" in { eval(makeExpr("eqv?", makeExpr("quote", LispList(List())), makeExpr("quote", LispList(List())))) must beLispVal(LispBool(true)) }
+    "(eqv? '(1) '())" in { eval(makeExpr("eqv?", makeExpr("quote", LispList(List(LispInteger(1)))), makeExpr("quote", LispList(List())))) must beLispVal(LispBool(false)) }
   }
 
   "equal?" should {
