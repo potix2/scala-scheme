@@ -21,7 +21,7 @@ sealed trait LispVal {
     case LispChar(c)     => c
     case LispVector(xs)  => "#(" + xs.foldLeft("")((b,a) => a.toString() + " " + b) + ")"
     case LispPrimitiveFunc(_) => "<primitive>"
-    case LispFunc(args, varargs, body, env) => "(lambda (" + unwords(args) + varargs.map(" . " + _) + ") ...)"
+    case LispFunc(args, varargs, body, env) => "(lambda (" + unwords(args) + varargs.map(" . " + _).getOrElse("") + ") ...)"
     case _ : LispReaderPort => "<IO port>"
     case _ : LispWriterPort => "<IO port>"
     case _ : LispIOFunc => "<IO primitive>"

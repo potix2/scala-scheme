@@ -7,7 +7,7 @@ import scalaz.Scalaz._
 trait LispParser extends RegexParsers {
   import Lisp._
 
-  override val whiteSpace = "".r
+  override val whiteSpace = """(?s)(#\|.*\|#|#?;[^\r\n]*[\r\n]*)+""".r
   val spaces = "[ \t\r\n]+".r
 
   def readOrThrow[A](parser: Parser[A], input: String): ThrowsError[A] =

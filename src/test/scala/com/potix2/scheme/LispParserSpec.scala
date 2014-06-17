@@ -1,8 +1,8 @@
 package com.potix2.scheme
 
-import org.specs2.mutable._
 import com.potix2.scheme.Lisp._
 import org.specs2.matcher.Matcher
+import org.specs2.mutable._
 
 class LispParserSpec extends SpecificationWithJUnit {
   val parser = new LispParser {}
@@ -83,6 +83,37 @@ class LispParserSpec extends SpecificationWithJUnit {
     }
   }
 
+  "comments" should {
+    "skip text followed by a semicolon" in {
+      parser.readExpr("""
+                        |; comment line
+                        |a
+                      """.stripMargin) must beLispVal(LispAtom("a"))
+    }
+    "skip text followed by a semicolon" in {
+      parser.readExpr("a ; comment line") must beLispVal(LispAtom("a"))
+    }
+    "skip text followed by a semicolon" in {
+      parser.readExpr("""
+                        |; comment line
+                        |a
+                      """.stripMargin) must beLispVal(LispAtom("a"))
+    }
+    "skip text quoted by #| and |#" in {
+      val e = """|#|
+                | comment line
+                ||#
+                |a""".stripMargin
+      parser.readExpr(e) must beLispVal(LispAtom("a"))
+    }
+    "be skipped when it is in an expression" in {
+      val s: String = """
+                        |(a
+                        |   #; comment
+                        |b c)""".stripMargin
+      parser.readExpr(s) must beLispVal(LispList(List(LispAtom("a"), LispAtom("b"), LispAtom("c"))))
+    }
+  }
   def beLispVal(expected:LispVal): Matcher[ThrowsError[LispVal]] = { value: ThrowsError[LispVal] =>
     value.toEither must beRight(expected)
   }
