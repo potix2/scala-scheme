@@ -56,7 +56,7 @@ trait Evaluator { self: LispEnv with LispParser =>
     ("boolean?", typeTestOp[LispBool]),
     ("string?", typeTestOp[LispString]),
     ("symbol?", typeTestOp[LispAtom]),
-    ("number?", typeTestOp[LispInteger])
+    ("number?", typeTestOp[LispLong])
   )
 
   val ioPrimitives = List(
@@ -76,11 +76,11 @@ trait Evaluator { self: LispEnv with LispParser =>
     case xs => NumArgs(1,xs).left[LispVal]
   }
 
-  def numericBinop(op: (Int, Int) => Int): List[LispVal] => ThrowsError[LispVal] = {
+  def numericBinop(op: (Long, Long) => Long): List[LispVal] => ThrowsError[LispVal] = {
     case xs@(h :: Nil) => NumArgs(2, xs).left[LispVal]
     case xs => for {
-      ints <- xs.map(unpackNumber).sequence[ThrowsError, Int]
-    } yield LispInteger(ints.tail.foldLeft(ints.head)(op))
+      ints <- xs.map(unpackNumber).sequence[ThrowsError, Long]
+    } yield LispLong(ints.tail.foldLeft(ints.head)(op))
   }
 
   def numBoolBinop = boolBinop(unpackNumber)(_)
@@ -95,14 +95,14 @@ trait Evaluator { self: LispEnv with LispParser =>
     case xs => NumArgs(2, xs).left[LispVal]
   }
 
-  def unpackNumber(value: LispVal): ThrowsError[Int] = value match {
-    case LispInteger(n) => n.point[ThrowsError]
-    case v => TypeMismatch("number", v).left[Int]
+  def unpackNumber(value: LispVal): ThrowsError[Long] = value match {
+    case LispLong(n) => n.point[ThrowsError]
+    case v => TypeMismatch("number", v).left[Long]
   }
 
   def unpackString(value: LispVal): ThrowsError[String] = value match {
     case LispString(v) => v.point[ThrowsError]
-    case LispInteger(v) => v.toString.point[ThrowsError]
+    case LispLong(v) => v.toString.point[ThrowsError]
     case LispBool(v) => v.toString.point[ThrowsError]
     case v => TypeMismatch("string", v).left[String]
   }
@@ -141,7 +141,7 @@ trait Evaluator { self: LispEnv with LispParser =>
 
   def eqvExpr(args: List[LispVal]): ThrowsError[LispVal] = args match {
     case LispBool(b1)::LispBool(b2)::Nil => LispBool(b1 == b2).point[ThrowsError]
-    case LispInteger(n1)::LispInteger(n2)::Nil => LispBool(n1 == n2).point[ThrowsError]
+    case LispLong(n1)::LispLong(n2)::Nil => LispBool(n1 == n2).point[ThrowsError]
     case LispString(s1)::LispString(s2)::Nil => LispBool(s1 == s2).point[ThrowsError]
     case LispAtom(a1)::LispAtom(a2)::Nil => LispBool(a1 == a2).point[ThrowsError]
     case LispDottedList(xs1, x1)::LispDottedList(xs2,x2)::Nil => eqvExpr(List(LispList(xs1 ++ List(x1)), LispList(xs2 ++ List(x2))))

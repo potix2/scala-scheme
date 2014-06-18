@@ -8,7 +8,7 @@ class LispEnvSpec extends Specification with LispEnv {
 
   val env = for {
     xx <- nullEnv
-    _ <- xx.write(List(("a", LispInteger(1).toIORef), ("b", LispInteger(2).toIORef)))
+    _ <- xx.write(List(("a", LispLong(1).toIORef), ("b", LispLong(2).toIORef)))
   } yield xx
   "isBound" should {
     "be false when the environment is empty" in {
@@ -26,43 +26,43 @@ class LispEnvSpec extends Specification with LispEnv {
       getVar(nullEnv.unsafePerformIO(), "a").toEither.unsafePerformIO() must beLeft(beAnInstanceOf[UnboundVar])
     }
     "return LispVal when the passed var exists in an environment" in {
-      getVar(env.unsafePerformIO(), "a").toEither.unsafePerformIO() must beRight(LispInteger(1))
+      getVar(env.unsafePerformIO(), "a").toEither.unsafePerformIO() must beRight(LispLong(1))
     }
   }
   "setVar" should {
     "throw UnboundVar error when the passed var doesn't exist" in {
-      setVar(nullEnv.unsafePerformIO())("a")(LispInteger(1)).toEither.unsafePerformIO() must beLeft(beAnInstanceOf[UnboundVar])
+      setVar(nullEnv.unsafePerformIO())("a")(LispLong(1)).toEither.unsafePerformIO() must beLeft(beAnInstanceOf[UnboundVar])
     }
     "return LispVal when the passed var exists in an environment" in {
       (for {
         e <- env.liftIO[IOThrowsError]
-        _ <- setVar(e)("a")(LispInteger(2))
+        _ <- setVar(e)("a")(LispLong(2))
         v <- getVar(e, "a")
-      } yield v).toEither.unsafePerformIO() must beRight(LispInteger(2))
+      } yield v).toEither.unsafePerformIO() must beRight(LispLong(2))
     }
   }
   "defineVar" should {
     "bind new value when the passed var doesn't exist" in {
       (for {
         e <- nullEnv.liftIO[IOThrowsError]
-        _ <- defineVar(e)("a")(LispInteger(100))
+        _ <- defineVar(e)("a")(LispLong(100))
         v <- getVar(e, "a")
-      } yield v).toEither.unsafePerformIO() must beRight(LispInteger(100))
+      } yield v).toEither.unsafePerformIO() must beRight(LispLong(100))
     }
     "set new value when the passed var exists" in {
       (for {
         e <- env.liftIO[IOThrowsError]
-        _ <- defineVar(e)("a")(LispInteger(200))
+        _ <- defineVar(e)("a")(LispLong(200))
         v <- getVar(e, "a")
-      } yield v).toEither.unsafePerformIO() must beRight(LispInteger(200))
+      } yield v).toEither.unsafePerformIO() must beRight(LispLong(200))
     }
   }
 
   "bindVars" should {
     "concatenate new bindings to passed environment" in {
-      val e = bindVars(env.unsafePerformIO)(List(("a", LispInteger(1)), ("b", LispInteger(2)))).unsafePerformIO()
-      getVar(e, "b").toEither.unsafePerformIO() must beRight(LispInteger(2))
-      getVar(e, "a").toEither.unsafePerformIO() must beRight(LispInteger(1))
+      val e = bindVars(env.unsafePerformIO)(List(("a", LispLong(1)), ("b", LispLong(2)))).unsafePerformIO()
+      getVar(e, "b").toEither.unsafePerformIO() must beRight(LispLong(2))
+      getVar(e, "a").toEither.unsafePerformIO() must beRight(LispLong(1))
     }
   }
 }

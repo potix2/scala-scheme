@@ -26,8 +26,8 @@ trait LispParser extends RegexParsers {
     vector |
     list |
     quotation |
-    identifier |
-    lispLiteral
+    lispLiteral |
+    identifier
 
   //7.1.1 Lexical structure
   def identifier: Parser[LispAtom] =
@@ -74,8 +74,10 @@ trait LispParser extends RegexParsers {
     "tab"       ^^ (x => LispChar("\u0009"))
 
   //TODO: implement number
-  def number: Parser[LispNumber] = int10 ^^ LispInteger
-  def int10: Parser[Int] = rep1(digit10) ^^ (xs => xs.foldLeft("")(_ + _).toInt)
+  def number: Parser[LispNumber] = int10 ^^ LispLong
+  def int10: Parser[Long] = rep1(digit10) ^^ (xs => xs.foldLeft("")(_ + _).toLong) |
+    explicitSign ~ rep1(digit10) ^^ { case s ~ xs => xs.foldLeft(s)(_ + _).toLong }
+
   def digit10: Parser[String] = digit
 
   //7.1.2 External representations

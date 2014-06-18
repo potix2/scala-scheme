@@ -12,7 +12,7 @@ class LispParserSpec extends SpecificationWithJUnit {
       parser.readExpr("'a") must beLispVal(LispList(List(LispAtom("quote"), LispAtom("a"))))
     }
     "return expression" in {
-      parser.readExpr("(+ 1 2)") must beLispVal(LispList(List(LispAtom("+"), LispInteger(1), LispInteger(2))))
+      parser.readExpr("(+ 1 2)") must beLispVal(LispList(List(LispAtom("+"), LispLong(1), LispLong(2))))
     }
   }
 
@@ -57,7 +57,10 @@ class LispParserSpec extends SpecificationWithJUnit {
 
   "number" should {
     "return integer when the input is integer" in {
-      parser.readExpr("123") must beLispVal(LispInteger(123))
+      parser.readExpr("123") must beLispVal(LispLong(123))
+    }
+    "return an negative integer when the input is negative integer" in {
+      parser.readExpr("-1") must beLispVal(LispLong(-1))
     }
   }
 

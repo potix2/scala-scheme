@@ -14,7 +14,7 @@ sealed trait LispVal {
     case LispAtom(v)     => v
     case LispList(xs)    => "(" + unwords(xs.map(_.toString)) + ")"
     case LispDottedList(head, tail)    => "(" + unwords(head.map(_.toString)) + " . " + tail.toString() + ")"
-    case LispInteger(i)  => i.toString()
+    case LispLong(i)  => i.toString()
     case LispString(s)   => "\"" + s + "\""
     case LispBool(true)  => "#t"
     case LispBool(false) => "#f"
@@ -32,7 +32,7 @@ case class LispAtom(value: String) extends LispVal
 case class LispList(value: List[LispVal]) extends LispVal
 case class LispDottedList(list: List[LispVal], value: LispVal) extends LispVal
 abstract trait LispNumber extends LispVal
-case class LispInteger(value: Int) extends LispNumber
+case class LispLong(value: Long) extends LispNumber
 case class LispString(value: String) extends LispVal
 case class LispBool(value: Boolean) extends LispVal
 case class LispChar(value: String) extends LispVal
