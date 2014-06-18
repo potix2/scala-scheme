@@ -74,10 +74,18 @@ trait LispParser extends RegexParsers {
     "tab"       ^^ (x => LispChar("\u0009"))
 
   //TODO: implement number
-  def number: Parser[LispNumber] = int10 ^^ LispLong
+  def number: Parser[LispNumber] =
+    real10    ^^ LispDouble |
+    int10     ^^ LispLong
   def int10: Parser[Long] = rep1(digit10) ^^ (xs => xs.foldLeft("")(_ + _).toLong) |
     explicitSign ~ rep1(digit10) ^^ { case s ~ xs => xs.foldLeft(s)(_ + _).toLong }
-
+  def real10: Parser[Double] =
+    ureal10 ^^ { _.toDouble } |
+    explicitSign ~ ureal10 ^^ { case sign~r => (sign + r).toDouble }
+  def ureal10: Parser[String] = decimal10
+  def decimal10: Parser[String] =
+    "." ~ rep1(digit) ^^ { case x~xs => xs.foldLeft(x)(_ + _) } |
+    rep1(digit) ~ "." ~ rep(digit) ^^ { case i~dot~d => (i.foldLeft("")(_ + _) + dot + d.foldLeft("")(_+_)) }
   def digit10: Parser[String] = digit
 
   //7.1.2 External representations

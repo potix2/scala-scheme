@@ -56,11 +56,23 @@ class LispParserSpec extends SpecificationWithJUnit {
   }
 
   "number" should {
-    "return integer when the input is integer" in {
+    "123" in {
       parser.readExpr("123") must beLispVal(LispLong(123))
     }
-    "return an negative integer when the input is negative integer" in {
+    "-1" in {
       parser.readExpr("-1") must beLispVal(LispLong(-1))
+    }
+    "1.0" in {
+      parser.readExpr("1.0") must beLispVal(LispDouble(1.0d))
+    }
+    ".1234" in {
+      parser.readExpr(".1234") must beLispVal(LispDouble(0.1234d))
+    }
+    "-1.234" in {
+      parser.readExpr("-1.234") must beLispVal(LispDouble(-1.234d))
+    }
+    "-.1234" in {
+      parser.readExpr("-.1234") must beLispVal(LispDouble(-0.1234d))
     }
   }
 
