@@ -16,7 +16,12 @@ object Lisp {
   }
 }
 
-object MyLisp extends App with LispParser with Evaluator with LispEnv {
+object MyLisp extends App
+with LispParser
+with IOPrimitives
+with ListPrimitives
+with Evaluator
+with LispEnv {
   import Lisp._
 
   def readPrompt(prompt: String): IO[String] = for {

@@ -30,8 +30,18 @@ sealed trait LispVal {
 }
 
 case class LispAtom(value: String) extends LispVal
-case class LispList(value: List[LispVal]) extends LispVal
-case class LispDottedList(list: List[LispVal], value: LispVal) extends LispVal
+abstract trait LispPair extends LispVal {
+  def isEmpty: Boolean
+}
+
+case class LispList(value: List[LispVal]) extends LispPair {
+  override def isEmpty: Boolean = value.isEmpty
+}
+
+case class LispDottedList(list: List[LispVal], value: LispVal) extends LispPair {
+  override def isEmpty: Boolean = false
+}
+
 abstract trait LispNumber extends LispVal
 case class LispLong(value: Long) extends LispNumber
 case class LispDouble(value: Double) extends LispNumber

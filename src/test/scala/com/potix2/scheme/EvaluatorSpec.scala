@@ -7,7 +7,7 @@ import org.specs2.matcher.Matcher
 import org.specs2.mutable.SpecificationWithJUnit
 
 class EvaluatorSpec extends SpecificationWithJUnit {
-  val evaluator = new Evaluator with LispEnv with LispParser
+  val evaluator = new Evaluator with LispEnv with LispParser with IOPrimitives with ListPrimitives
 
   "eval an atom" should {
     "return the atom" in {
@@ -55,6 +55,7 @@ class EvaluatorSpec extends SpecificationWithJUnit {
     "(number? #t)" in { eval(makeExpr("number?", LispBool(true))) must beLispVal(LispBool(false)) }
     "(number? \"abc\")" in { eval(makeExpr("number?", LispString("abc"))) must beLispVal(LispBool(false)) }
     "(number? 1)" in { eval(makeExpr("number?", LispLong(1))) must beLispVal(LispBool(true)) }
+    "(number? 1.0)" in { eval(makeExpr("number?", LispDouble(1.0))) must beLispVal(LispBool(true)) }
     "(number? 'a)" in { eval(makeExpr("number?", makeExpr("quote", LispAtom("a")))) must beLispVal(LispBool(false)) }
   }
 
@@ -63,6 +64,17 @@ class EvaluatorSpec extends SpecificationWithJUnit {
     "(symbol? \"abc\")" in { eval(makeExpr("symbol?", LispString("abc"))) must beLispVal(LispBool(false)) }
     "(symbol? 1)" in { eval(makeExpr("symbol?", LispLong(1))) must beLispVal(LispBool(false)) }
     "(symbol? 'foo)" in { eval(makeExpr("symbol?", makeExpr("quote", LispAtom("foo")))) must beLispVal(LispBool(true)) }
+  }
+
+  "type-test pair?" should {
+    "(pair? #t)"       in { eval(makeExpr("pair?", LispBool(true))) must beLispVal(LispBool(false)) }
+    "(pair? \"abc\")"  in { eval(makeExpr("pair?", LispString("abc"))) must beLispVal(LispBool(false)) }
+    "(pair? 1)"        in { eval(makeExpr("pair?", LispLong(1))) must beLispVal(LispBool(false)) }
+    "(pair? 'foo)"     in { eval(makeExpr("pair?", makeExpr("quote", LispAtom("foo")))) must beLispVal(LispBool(false)) }
+    "(pair? '(a . b))" in { eval(makeExpr("pair?", makeExpr("quote", LispDottedList(List(LispAtom("a")), LispAtom("b"))))) must beLispVal(LispBool(true)) }
+    "(pair? '(a b c))" in { eval(makeExpr("pair?", makeExpr("quote", LispList(List(LispAtom("a"), LispAtom("b"), LispAtom("c")))))) must beLispVal(LispBool(true)) }
+    "(pair? '())"      in { eval(makeExpr("pair?", makeExpr("quote", LispList(List())))) must beLispVal(LispBool(false)) }
+    "(pair? '#(a b))"  in { eval(makeExpr("pair?", makeExpr("quote", LispVector(Vector(LispAtom("a"), LispAtom("b")))))) must beLispVal(LispBool(false)) }
   }
 
   "if" should {
