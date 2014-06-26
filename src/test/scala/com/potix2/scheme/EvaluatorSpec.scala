@@ -77,6 +77,17 @@ class EvaluatorSpec extends SpecificationWithJUnit {
     "(pair? '#(a b))"  in { eval(makeExpr("pair?", makeExpr("quote", LispVector(Vector(LispAtom("a"), LispAtom("b")))))) must beLispVal(LispBool(false)) }
   }
 
+  "type-test list?" should {
+    "(list? #t)"       in { eval(makeExpr("list?", LispBool(true))) must beLispVal(LispBool(false)) }
+    "(list? \"abc\")"  in { eval(makeExpr("list?", LispString("abc"))) must beLispVal(LispBool(false)) }
+    "(list? 1)"        in { eval(makeExpr("list?", LispLong(1))) must beLispVal(LispBool(false)) }
+    "(list? 'foo)"     in { eval(makeExpr("list?", makeExpr("quote", LispAtom("foo")))) must beLispVal(LispBool(false)) }
+    "(list? '(a . b))" in { eval(makeExpr("list?", makeExpr("quote", LispDottedList(List(LispAtom("a")), LispAtom("b"))))) must beLispVal(LispBool(false)) }
+    "(list? '(a b c))" in { eval(makeExpr("list?", makeExpr("quote", LispList(List(LispAtom("a"), LispAtom("b"), LispAtom("c")))))) must beLispVal(LispBool(true)) }
+    "(list? '())"      in { eval(makeExpr("list?", makeExpr("quote", LispList(List())))) must beLispVal(LispBool(true)) }
+    "(list? '#(a b))"  in { eval(makeExpr("list?", makeExpr("quote", LispVector(Vector(LispAtom("a"), LispAtom("b")))))) must beLispVal(LispBool(false)) }
+  }
+
   "if" should {
     "(if #f 1 2)" in { eval(makeExpr("if", LispBool(false), LispLong(1), LispLong(2))) must beLispVal(LispLong(2)) }
     "(if #t 1 2)" in { eval(makeExpr("if", LispBool(true), LispLong(1), LispLong(2))) must beLispVal(LispLong(1)) }

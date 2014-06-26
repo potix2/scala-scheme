@@ -6,8 +6,6 @@ import scalaz._
 import scalaz.effect._
 
 trait LispEnv {
-  import Lisp._
-
   def nullEnv: IO[Env] = IO.newIORef(List.empty[(String, IORef[LispVal])])
 
   def runIOThrows(action: IOThrowsError[String]): IO[String] = for {

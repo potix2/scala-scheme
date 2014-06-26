@@ -5,8 +5,6 @@ import scala.util.parsing.combinator._
 import scalaz.Scalaz._
 
 trait LispParser extends RegexParsers {
-  import Lisp._
-
   override val whiteSpace = """(?s)(#\|.*\|#|#?;[^\r\n]*[\r\n]*)+""".r
   val spaces = "[ \t\r\n]+".r
 

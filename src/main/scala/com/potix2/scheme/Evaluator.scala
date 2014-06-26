@@ -1,7 +1,6 @@
 package com.potix2.scheme
 import scala.reflect.{ClassTag, classTag}
 
-import com.potix2.scheme.Lisp._
 import scalaz.Scalaz._
 import scalaz.effect.IO
 import java.io._
@@ -112,7 +111,8 @@ trait Evaluator { self: LispEnv
     ("string?", typeTestOp[LispString]),
     ("symbol?", typeTestOp[LispAtom]),
     ("number?", typeTestOp[LispNumber]),
-    ("pair?", exprPair _)
+    ("pair?", exprPair _),
+    ("list?", typeTestOp[LispList])
   )
 
   val ioPrimitives = List(

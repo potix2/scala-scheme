@@ -1,7 +1,5 @@
 package com.potix2.scheme
 
-import com.potix2.scheme.Lisp.ThrowsError
-
 import scalaz._
 import Scalaz._
 

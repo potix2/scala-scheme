@@ -1,8 +1,8 @@
 package com.potix2.scheme
 
+import java.io.{BufferedReader, BufferedWriter}
+
 import scalaz.effect.{IO, IORef}
-import Lisp._
-import java.io.{BufferedWriter, BufferedReader}
 
 sealed trait LispVal {
   def toIORef:IORef[LispVal] = IO.newIORef(this).unsafePerformIO()
