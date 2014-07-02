@@ -1,8 +1,6 @@
 package com.potix2.scheme
 
 import org.specs2.mutable.Specification
-import Lisp._
-import scalaz.effect.IO
 
 class LispEnvSpec extends Specification with LispEnv {
 

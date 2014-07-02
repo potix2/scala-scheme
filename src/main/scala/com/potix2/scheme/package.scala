@@ -14,4 +14,11 @@ package object scheme {
     override def point[A](a: => A): IOThrowsError[A] = EitherT.right(IO(a))
     override def bind[A, B](fa: IOThrowsError[A])(f: (A) => IOThrowsError[B]): IOThrowsError[B] = fa.flatMap(f)
   }
+
+  implicit class LispQuote(ctx: StringContext) {
+    def l(args: LispVal*): LispVal = MyLisp.readExpr(ctx.parts.head) match {
+      case \/-(v) => v
+      case -\/(e) => LispString(e.toString())
+    }
+  }
 }

@@ -2,7 +2,6 @@ package com.potix2.scheme
 
 import scala.reflect.ClassTag
 
-import com.potix2.scheme.Lisp._
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.SpecificationWithJUnit
 
@@ -16,142 +15,137 @@ class EvaluatorSpec extends SpecificationWithJUnit {
   }
   "eval a quoted value" should {
     "'abcd to abcd" in {
-      eval(makeExpr("quote", LispAtom("abcd"))) must beLispVal(LispAtom("abcd"))
+      eval(l"'abcd") must beLispVal(l"abcd")
     }
     "''a to 'a" in {
-      eval(makeExpr("quote", makeExpr("quote", LispAtom("a")))) must beLispVal(LispList(List(LispAtom("quote"), LispAtom("a"))))
+      eval(l"''a") must beLispVal(l"'a")
     }
   }
   "eval" should {
     "reduce (+ 1 2 3) to 6" in {
-      eval(LispList(List(LispAtom("+"), LispLong(1), LispLong(2), LispLong(3)))) must beLispVal(LispLong(6))
+      eval(l"(+ 1 2 3)") must beLispVal(l"6")
     }
     "reduce (- 4 1 2) to 1" in {
-      eval(LispList(List(LispAtom("-"), LispLong(4), LispLong(1), LispLong(2)))) must beLispVal(LispLong(1))
+      eval(l"(- 4 1 2)") must beLispVal(l"1")
     }
     "reduce (+ 2 (- 4 1)) to 5" in {
-      eval(LispList(List(LispAtom("+"), LispLong(2), LispList(List(LispAtom("-"), LispLong(4), LispLong(1)))))) must beLispVal(LispLong(5))
+      eval(l"(+ 2 (- 4 1))") must beLispVal(l"5")
     }
     "reduce (* 2 3) to 6" in {
-      eval(LispList(List(LispAtom("*"), LispLong(2), LispLong(3)))) must beLispVal(LispLong(6))
+      eval(l"(* 2 3)") must beLispVal(l"6")
     }
   }
   "type-test boolean?" should {
-    "(boolean? #t)" in { eval(makeExpr("boolean?", LispBool(true))) must beLispVal(LispBool(true)) }
-    "(boolean? #f)" in { eval(makeExpr("boolean?", LispBool(false))) must beLispVal(LispBool(true)) }
-    "(boolean? \"abc\")" in { eval(makeExpr("boolean?", LispString("abc"))) must beLispVal(LispBool(false)) }
-    "(boolean? 1)" in { eval(makeExpr("boolean?", LispLong(1))) must beLispVal(LispBool(false)) }
-    "(boolean? 'a)" in { eval(makeExpr("boolean?", makeExpr("quote", LispAtom("a")))) must beLispVal(LispBool(false)) }
+    "(boolean? #t)"      in { eval(l"(boolean? #t)") must beLispVal(l"#t") }
+    "(boolean? #f)"      in { eval(l"(boolean? #f)") must beLispVal(l"#t") }
+    "(boolean? \"abc\")" in { eval(l"""(boolean? "abc")""") must beLispVal(l"#f") }
+    "(boolean? 1)"       in { eval(l"(boolean? 1)") must beLispVal(l"#f") }
+    "(boolean? 'a)"      in { eval(l"(boolean? 'a)") must beLispVal(l"#f") }
   }
 
   "type-test string?" should {
-    "(string? #t)" in { eval(makeExpr("string?", LispBool(true))) must beLispVal(LispBool(false)) }
-    "(string? \"abc\")" in { eval(makeExpr("string?", LispString("abc"))) must beLispVal(LispBool(true)) }
-    "(string? 1)" in { eval(makeExpr("string?", LispLong(1))) must beLispVal(LispBool(false)) }
-    "(string? 'a)" in { eval(makeExpr("string?", makeExpr("quote", LispAtom("a")))) must beLispVal(LispBool(false)) }
+    "(string? #t)"      in { eval(l"(string? #t)") must beLispVal(l"#f") }
+    "(string? \"abc\")" in { eval(l"""(string? "abc")""") must beLispVal(l"#t") }
+    "(string? 1)"       in { eval(l"(string? 1)") must beLispVal(l"#f") }
+    "(string? 'a)"      in { eval(l"(string? 'a)") must beLispVal(l"#f") }
   }
 
   "type-test number?" should {
-    "(number? #t)" in { eval(makeExpr("number?", LispBool(true))) must beLispVal(LispBool(false)) }
-    "(number? \"abc\")" in { eval(makeExpr("number?", LispString("abc"))) must beLispVal(LispBool(false)) }
-    "(number? 1)" in { eval(makeExpr("number?", LispLong(1))) must beLispVal(LispBool(true)) }
-    "(number? 1.0)" in { eval(makeExpr("number?", LispDouble(1.0))) must beLispVal(LispBool(true)) }
-    "(number? 'a)" in { eval(makeExpr("number?", makeExpr("quote", LispAtom("a")))) must beLispVal(LispBool(false)) }
+    "(number? #t)"      in { eval(l"(number? #t)") must beLispVal(l"#f") }
+    "(number? \"abc\")" in { eval(l"""(number? "abc")""") must beLispVal(l"#f") }
+    "(number? 1)"       in { eval(l"(number? 1)") must beLispVal(l"#t") }
+    "(number? 1.0)"     in { eval(l"(number? 1.0)") must beLispVal(l"#t") }
+    "(number? 'a)"      in { eval(l"(number? 'a)") must beLispVal(l"#f") }
   }
 
   "type-test symbol?" should {
-    "(symbol? #t)" in { eval(makeExpr("symbol?", LispBool(true))) must beLispVal(LispBool(false)) }
-    "(symbol? \"abc\")" in { eval(makeExpr("symbol?", LispString("abc"))) must beLispVal(LispBool(false)) }
-    "(symbol? 1)" in { eval(makeExpr("symbol?", LispLong(1))) must beLispVal(LispBool(false)) }
-    "(symbol? 'foo)" in { eval(makeExpr("symbol?", makeExpr("quote", LispAtom("foo")))) must beLispVal(LispBool(true)) }
+    "(symbol? #t)"      in { eval(l"(symbol? #t)") must beLispVal(l"#f") }
+    "(symbol? \"abc\")" in { eval(l"""(symbol? "abc")""") must beLispVal(l"#f") }
+    "(symbol? 1)"       in { eval(l"(symbol? 1)") must beLispVal(l"#f") }
+    "(symbol? 'foo)"    in { eval(l"(symbol? 'foo)") must beLispVal(l"#t") }
   }
 
   "type-test pair?" should {
-    "(pair? #t)"       in { eval(makeExpr("pair?", LispBool(true))) must beLispVal(LispBool(false)) }
-    "(pair? \"abc\")"  in { eval(makeExpr("pair?", LispString("abc"))) must beLispVal(LispBool(false)) }
-    "(pair? 1)"        in { eval(makeExpr("pair?", LispLong(1))) must beLispVal(LispBool(false)) }
-    "(pair? 'foo)"     in { eval(makeExpr("pair?", makeExpr("quote", LispAtom("foo")))) must beLispVal(LispBool(false)) }
-    "(pair? '(a . b))" in { eval(makeExpr("pair?", makeExpr("quote", LispDottedList(List(LispAtom("a")), LispAtom("b"))))) must beLispVal(LispBool(true)) }
-    "(pair? '(a b c))" in { eval(makeExpr("pair?", makeExpr("quote", LispList(List(LispAtom("a"), LispAtom("b"), LispAtom("c")))))) must beLispVal(LispBool(true)) }
-    "(pair? '())"      in { eval(makeExpr("pair?", makeExpr("quote", LispList(List())))) must beLispVal(LispBool(false)) }
-    "(pair? '#(a b))"  in { eval(makeExpr("pair?", makeExpr("quote", LispVector(Vector(LispAtom("a"), LispAtom("b")))))) must beLispVal(LispBool(false)) }
+    "(pair? #t)"       in { eval(l"(pair? #t)") must beLispVal(l"#f") }
+    "(pair? \"abc\")"  in { eval(l"""(pair? "abc")""") must beLispVal(l"#f") }
+    "(pair? 1)"        in { eval(l"(pair? 1)") must beLispVal(l"#f") }
+    "(pair? 'foo)"     in { eval(l"(pair? 'foo)") must beLispVal(l"#f") }
+    "(pair? '(a . b))" in { eval(l"(pair? '(a . b))") must beLispVal(l"#t") }
+    "(pair? '(a b c))" in { eval(l"(pair? '(a b c))") must beLispVal(l"#t") }
+    "(pair? '())"      in { eval(l"(pair? '())") must beLispVal(l"#f") }
+    "(pair? '#(a b))"  in { eval(l"(pair? '#(a b))") must beLispVal(l"#f") }
   }
 
   "type-test list?" should {
-    "(list? #t)"       in { eval(makeExpr("list?", LispBool(true))) must beLispVal(LispBool(false)) }
-    "(list? \"abc\")"  in { eval(makeExpr("list?", LispString("abc"))) must beLispVal(LispBool(false)) }
-    "(list? 1)"        in { eval(makeExpr("list?", LispLong(1))) must beLispVal(LispBool(false)) }
-    "(list? 'foo)"     in { eval(makeExpr("list?", makeExpr("quote", LispAtom("foo")))) must beLispVal(LispBool(false)) }
-    "(list? '(a . b))" in { eval(makeExpr("list?", makeExpr("quote", LispDottedList(List(LispAtom("a")), LispAtom("b"))))) must beLispVal(LispBool(false)) }
-    "(list? '(a b c))" in { eval(makeExpr("list?", makeExpr("quote", LispList(List(LispAtom("a"), LispAtom("b"), LispAtom("c")))))) must beLispVal(LispBool(true)) }
-    "(list? '())"      in { eval(makeExpr("list?", makeExpr("quote", LispList(List())))) must beLispVal(LispBool(true)) }
-    "(list? '#(a b))"  in { eval(makeExpr("list?", makeExpr("quote", LispVector(Vector(LispAtom("a"), LispAtom("b")))))) must beLispVal(LispBool(false)) }
+    "(list? #t)"       in { eval(l"(list? #t)") must beLispVal(l"#f") }
+    "(list? \"abc\")"  in { eval(l"""(list? "abc")""") must beLispVal(l"#f") }
+    "(list? 1)"        in { eval(l"(list? 1)") must beLispVal(l"#f") }
+    "(list? 'foo)"     in { eval(l"(list? 'foo)") must beLispVal(l"#f") }
+    "(list? '(a . b))" in { eval(l"(list? '(a . b))") must beLispVal(l"#f") }
+    "(list? '(a b c))" in { eval(l"(list? '(a b c))") must beLispVal(l"#t") }
+    "(list? '())"      in { eval(l"(list? '())") must beLispVal(l"#t") }
+    "(list? '#(a b))"  in { eval(l"(list? '#(a b))") must beLispVal(l"#f") }
   }
 
   "if" should {
-    "(if #f 1 2)" in { eval(makeExpr("if", LispBool(false), LispLong(1), LispLong(2))) must beLispVal(LispLong(2)) }
-    "(if #t 1 2)" in { eval(makeExpr("if", LispBool(true), LispLong(1), LispLong(2))) must beLispVal(LispLong(1)) }
+    "(if #f 1 2)" in { eval(l"(if #f 1 2)") must beLispVal(l"2") }
+    "(if #t 1 2)" in { eval(l"(if #t 1 2)") must beLispVal(l"1") }
   }
 
   "car" should {
-    "(car 'a)" in { eval(makeExpr("car", makeExpr("quote", LispAtom("a")))) must haveError[TypeMismatch] }
-    "(car 'a 'b)" in { eval(makeExpr("car", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispAtom("b")))) must haveError[NumArgs] }
-    "(car '(a b))" in { eval(makeExpr("car", makeExpr("quote", LispList(List(LispAtom("a"), LispAtom("b")))))) must beLispVal(LispAtom("a")) }
-    "(car '(a b . c))" in { eval(makeExpr("car", makeDottedList(List(LispAtom("a"), LispAtom("b")),LispAtom("c")))) must beLispVal(LispAtom("a")) }
+    "(car 'a)"         in { eval(l"(car 'a)") must haveError[TypeMismatch] }
+    "(car 'a 'b)"      in { eval(l"(car 'a 'b)") must haveError[NumArgs] }
+    "(car '(a b))"     in { eval(l"(car '(a b))") must beLispVal(l"a") }
+    "(car '(a b . c))" in { eval(l"(car '(a b . c))") must beLispVal(l"a") }
   }
 
   "cdr" should {
-    "(cdr 'a)" in { eval(makeExpr("cdr", makeExpr("quote", LispAtom("a")))) must haveError[TypeMismatch] }
-    "(cdr 'a 'b)" in { eval(makeExpr("cdr", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispAtom("b")))) must haveError[NumArgs] }
-    "(cdr '(a b))" in { eval(makeExpr("cdr", makeExpr("quote", LispList(List(LispAtom("a"), LispAtom("b")))))) must beLispVal(LispList(List(LispAtom("b")))) }
-    "(cdr '(a . b))" in { eval(makeExpr("cdr", makeDottedList(List(LispAtom("a")), LispAtom("b")))) must beLispVal(LispAtom("b")) }
-    "(cdr '(a b . c))" in { eval(makeExpr("cdr", makeExpr("quote", LispDottedList(List(LispAtom("a"), LispAtom("b")),LispAtom("c"))))) must beLispVal(LispDottedList(List(LispAtom("b")), LispAtom("c"))) }
-    "(cdr '(a))" in { eval(makeExpr("cdr", makeExpr("quote", LispList(List(LispAtom("a")))))) must beLispVal(LispList(List())) }
+    "(cdr 'a)"         in { eval(l"(cdr 'a)") must haveError[TypeMismatch] }
+    "(cdr 'a 'b)"      in { eval(l"(cdr 'a 'b)") must haveError[NumArgs] }
+    "(cdr '(a b))"     in { eval(l"(cdr '(a b))") must beLispVal(l"(b)") }
+    "(cdr '(a . b))"   in { eval(l"(cdr '(a . b))") must beLispVal(l"b") }
+    "(cdr '(a b . c))" in { eval(l"(cdr '(a b . c))") must beLispVal(l"(b . c)") }
+    "(cdr '(a))"       in { eval(l"(cdr '(a))") must beLispVal(l"()") }
   }
 
   "cons" should {
-    "(cons 'a 'b)" in { eval(makeExpr("cons", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispAtom("b")))) must beLispVal(LispDottedList(List(LispAtom("a")), LispAtom("b"))) }
-    "(cons 'a '(b . c))" in { eval(makeExpr("cons", makeExpr("quote", LispAtom("a")), makeDottedList(List(LispAtom("b")), LispAtom("c")))) must beLispVal(LispDottedList(List(LispAtom("a"), LispAtom("b")), LispAtom("c"))) }
-    "(cons 'a '(b c))" in { eval(makeExpr("cons", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispList(List(LispAtom("b"), LispAtom("c")))))) must beLispVal(LispList(List(LispAtom("a"), LispAtom("b"), LispAtom("c")))) }
-    "(cons 1 2 3))" in { eval(makeExpr("cons", LispLong(1), LispLong(2), LispLong(3))) must haveError[NumArgs] }
+    "(cons 'a 'b)"       in { eval(l"(cons 'a 'b)") must beLispVal(l"(a . b)") }
+    "(cons 'a '(b . c))" in { eval(l"(cons 'a '(b . c))") must beLispVal(l"(a b . c)") }
+    "(cons 'a '(b c))"   in { eval(l"(cons 'a '(b c))") must beLispVal(l"(a b c)") }
+    "(cons 1 2 3))"      in { eval(l"(cons 1 2 3)") must haveError[NumArgs] }
   }
 
   "eqv?" should {
-    "(eqv? #f #f)" in { eval(makeExpr("eqv?", LispBool(false), LispBool(false))) must beLispVal(LispBool(true)) }
-    "(eqv? #f #t)" in { eval(makeExpr("eqv?", LispBool(false), LispBool(true))) must beLispVal(LispBool(false)) }
-    "(eqv? 1 1)" in { eval(makeExpr("eqv?", LispLong(1), LispLong(1))) must beLispVal(LispBool(true)) }
-    "(eqv? 1 2)" in { eval(makeExpr("eqv?", LispLong(1), LispLong(2))) must beLispVal(LispBool(false)) }
-    "(eqv? \"a\" \"a\")" in { eval(makeExpr("eqv?", LispString("a"), LispString("a"))) must beLispVal(LispBool(true)) }
-    "(eqv? \"a\" \"b\")" in { eval(makeExpr("eqv?", LispString("a"), LispString("b"))) must beLispVal(LispBool(false)) }
-    "(eqv? 'a 'a)" in { eval(makeExpr("eqv?", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispAtom("a")))) must beLispVal(LispBool(true)) }
-    "(eqv? 'a 'b)" in { eval(makeExpr("eqv?", makeExpr("quote", LispAtom("a")), makeExpr("quote", LispAtom("b")))) must beLispVal(LispBool(false)) }
-    "(eqv? '(a . b) '(a . a))" in { eval(makeExpr("eqv?", makeDottedList(List(LispAtom("a")), LispAtom("b")), makeDottedList(List(LispAtom("a")), LispAtom("a")))) must beLispVal(LispBool(false)) }
-    "(eqv? 1 2 3)" in { eval(makeExpr("eqv?", LispLong(1), LispLong(2), LispLong(3))) must haveError[NumArgs] }
-    "(eqv? '() '())" in { eval(makeExpr("eqv?", makeExpr("quote", LispList(List())), makeExpr("quote", LispList(List())))) must beLispVal(LispBool(true)) }
-    "(eqv? '(1) '())" in { eval(makeExpr("eqv?", makeExpr("quote", LispList(List(LispLong(1)))), makeExpr("quote", LispList(List())))) must beLispVal(LispBool(false)) }
+    "(eqv? #f #f)"       in { eval(l"(eqv? #f #f)") must beLispVal(l"#t") }
+    "(eqv? #f #t)"       in { eval(l"(eqv? #f #t)") must beLispVal(l"#f") }
+    "(eqv? 1 1)"         in { eval(l"(eqv? 1 1)") must beLispVal(l"#t") }
+    "(eqv? 1 2)"         in { eval(l"(eqv? 1 2)") must beLispVal(l"#f") }
+    "(eqv? \"a\" \"a\")" in { eval(l"""(eqv? "a" "a")""") must beLispVal(l"#t") }
+    "(eqv? \"a\" \"b\")" in { eval(l"""(eqv? "a" "b")""") must beLispVal(l"#f") }
+    "(eqv? 'a 'a)"       in { eval(l"(eqv? 'a 'a)") must beLispVal(l"#t") }
+    "(eqv? 'a 'b)"       in { eval(l"(eqv? 'a 'b)") must beLispVal(l"#f") }
+    "(eqv? 1 2 3)"       in { eval(l"(eqv? 1 2 3)") must haveError[NumArgs] }
+    "(eqv? '() '())"     in { eval(l"(eqv? '() '())") must beLispVal(l"#t") }
+    "(eqv? '(1) '())"    in { eval(l"(eqv? '(1) '())") must beLispVal(l"#f") }
+    "(eqv? '(a . b) '(a . a))" in { eval(l"(eqv? '(a . b) '(a . a))") must beLispVal(l"#f") }
   }
 
   "equal?" should {
-    "(equal? 1 \"1\")" in { eval(makeExpr("equal?", LispLong(1), LispString("1"))) must beLispVal(LispBool(true)) }
-    "(equal? 1 1)" in { eval(makeExpr("equal?", LispLong(1), LispLong(1))) must beLispVal(LispBool(true)) }
-    "(equal? '(1 \"2\") '(1 2))" in { eval(makeExpr("equal?", makeExpr("quote", LispList(List(LispLong(1), LispString("2")))),
-      makeExpr("quote", LispList(List(LispLong(1), LispLong(2)))))) must beLispVal(LispBool(true)) }
+    "(equal? 1 \"1\")"           in { eval(l"""(equal? 1 "1")""") must beLispVal(l"#t") }
+    "(equal? 1 1)"               in { eval(l"(equal? 1 1)") must beLispVal(l"#t") }
+    "(equal? 1 2)"               in { eval(l"(equal? 1 2)") must beLispVal(l"#f") }
+    "(equal? '(1 \"2\") '(1 2))" in { eval(l"""(equal? '(1 "2") '(1 2))""") must beLispVal(l"#t") }
+    //"(equal? '(1 \"2\") '(1))"   in { eval(l"""(equal? '(1 "2") '(1))""") must beLispVal(l"#f") }
   }
 
   "cond" should {
-    "(cond (#f 1 2) (#t 3 4))" in { eval(makeExpr("cond", LispList(List(LispBool(false), LispLong(1), LispLong(2))), LispList(List(LispBool(true), LispLong(3), LispLong(4))))) must beLispVal(LispLong(4)) }
-    "(cond (#f 1 2) (else 3 4))" in { eval(makeExpr("cond", LispList(List(LispBool(false), LispLong(1), LispLong(2))), LispList(List(LispAtom("else"), LispLong(3), LispLong(4))))) must beLispVal(LispLong(4)) }
-    "(cond (1))" in { eval(makeExpr("cond", LispList(List(LispLong(1))))) must beLispVal(LispLong(1))}
-    "(cond ((\"a\")))" in { eval(makeExpr("cond", LispList(List(LispList(List(LispString("a"))))))) must haveError[NotFunction] }
-    "(cond (1 (\"a\") 2))" in { eval(makeExpr("cond", LispList(List(LispLong(1), LispList(List(LispString("a"))), LispLong(2))))) must haveError[NotFunction] }
-    "(cond (1 => number?))" in { eval(makeExpr("cond", LispList(List(LispLong(1),LispAtom("=>"), LispAtom("number?"))))) must beLispVal(LispBool(true))}
+    "(cond (#f 1 2) (#t 3 4))"   in { eval(l"(cond (#f 1 2) (#t 3 4))") must beLispVal(l"4") }
+    "(cond (#f 1 2) (else 3 4))" in { eval(l"(cond (#f 1 2) (else 3 4))") must beLispVal(l"4") }
+    "(cond (1))"                 in { eval(l"(cond (1))") must beLispVal(l"1") }
+    "(cond ((\"a\")))"           in { eval(l"""(cond (("a")))""") must haveError[NotFunction] }
+    "(cond (1 (\"a\") 2))"       in { eval(l"""(cond (1 ("a") 2))""") must haveError[NotFunction] }
+    "(cond (1 => number?))"      in { eval(l"(cond (1 => number?))") must beLispVal(l"#t") }
   }
-
-  def makeDottedList(xs: List[LispVal], last: LispVal): LispList =
-    makeExpr("quote", LispDottedList(xs, last))
-
-  def makeExpr(sym:String, values: LispVal*): LispList =
-    LispList(LispAtom(sym) :: values.toList)
 
   def eval(value: LispVal) = {
     evaluator.eval(evaluator.primitiveBindings.unsafePerformIO())(value)

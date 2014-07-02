@@ -1,6 +1,5 @@
 package com.potix2.scheme
 
-import com.potix2.scheme.Lisp._
 import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
